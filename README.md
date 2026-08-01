@@ -118,7 +118,7 @@ npm install
 ### 2. Configure environment variables
 
 ```bash
-cp .env.example .env
+[Convert]::ToBase64String((1..32 | ForEach-Object {Get-Random -Maximum 256}))
 ```
 
 Fill in `.env`:
