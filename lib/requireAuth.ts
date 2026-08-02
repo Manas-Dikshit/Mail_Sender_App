@@ -1,6 +1,5 @@
-import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/auth';
 
 /**
  * Verifies the caller has a valid session. Returns the session on success,
@@ -11,7 +10,7 @@ import { authOptions } from '@/lib/auth';
  *   if (auth instanceof NextResponse) return auth;
  */
 export async function requireAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 });
   }

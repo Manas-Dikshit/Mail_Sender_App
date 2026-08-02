@@ -1,13 +1,7 @@
-import type { AuthOptions } from 'next-auth';
+import type { NextAuthConfig } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
-/**
- * Single-account authentication. Credentials are compared against
- * ADMIN_USERNAME / ADMIN_PASSWORD from the environment — there is no user
- * database, no signup, and no roles. This is intentional: the app is used
- * by 2-3 internal people only.
- */
-export const authOptions: AuthOptions = {
+export const authOptions: NextAuthConfig = {
   session: {
     strategy: 'jwt',
     maxAge: 60 * 60 * 8, // 8 hours
