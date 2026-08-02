@@ -3,11 +3,73 @@
 import { useState, FormEvent } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { User, Lock, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/components/lib/cn';
+
+function FloatingField({
+  id,
+  label,
+  type,
+  value,
+  onChange,
+  icon: Icon,
+  autoComplete,
+  trailing,
+}: {
+  id: string;
+  label: string;
+  type: string;
+  value: string;
+  onChange: (v: string) => void;
+  icon: typeof User;
+  autoComplete: string;
+  trailing?: React.ReactNode;
+}) {
+  const [focused, setFocused] = useState(false);
+  const floated = focused || value.length > 0;
+
+  return (
+    <div className="relative">
+      <Icon
+        className={cn(
+          'pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 transition-colors',
+          floated ? 'text-secondary-500' : 'text-primary-300'
+        )}
+        aria-hidden="true"
+      />
+      <input
+        id={id}
+        name={id}
+        type={type}
+        required
+        autoComplete={autoComplete}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        className="peer block w-full rounded-xl2 border-2 border-primary-100 bg-white/80 px-10 pb-2.5 pt-5 text-sm text-primary-900 shadow-soft outline-none transition focus:border-secondary-400"
+      />
+      <label
+        htmlFor={id}
+        className={cn(
+          'pointer-events-none absolute left-10 transition-all duration-200',
+          floated ? 'top-2 text-[11px] font-semibold uppercase tracking-wide text-secondary-600' : 'top-1/2 -translate-y-1/2 text-sm text-primary-400'
+        )}
+      >
+        {label}
+      </label>
+      {trailing && <div className="absolute right-3 top-1/2 -translate-y-1/2">{trailing}</div>}
+    </div>
+  );
+}
 
 export default function LoginForm() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -34,52 +96,58 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      {error && (
-        <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-          {error}
-        </div>
-      )}
+    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            role="alert"
+            className="flex items-center gap-2 overflow-hidden rounded-xl2 border border-primary-200 bg-primary-50 px-3.5 py-2.5 text-sm text-primary-800"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <div>
-        <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-          Username
-        </label>
-        <input
-          id="username"
-          name="username"
-          type="text"
-          autoComplete="username"
-          required
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-        />
-      </div>
+      <FloatingField
+        id="username"
+        label="Username"
+        type="text"
+        value={username}
+        onChange={setUsername}
+        icon={User}
+        autoComplete="username"
+      />
 
-      <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-          Password
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-        />
-      </div>
+      <FloatingField
+        id="password"
+        label="Password"
+        type={showPassword ? 'text' : 'password'}
+        value={password}
+        onChange={setPassword}
+        icon={Lock}
+        autoComplete="current-password"
+        trailing={
+          <button
+            type="button"
+            onClick={() => setShowPassword((s) => !s)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            className="rounded-md p-1 text-primary-400 hover:bg-primary-50 hover:text-primary-700"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+          </button>
+        }
+      />
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full rounded-md bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {submitting ? 'Signing in…' : 'Sign in'}
-      </button>
+      <Button type="submit" loading={submitting} className="w-full group" size="lg">
+        {submitting ? 'Signing in\u2026' : 'Sign in'}
+        {!submitting && (
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        )}
+      </Button>
     </form>
   );
 }
