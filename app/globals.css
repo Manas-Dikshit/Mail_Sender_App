@@ -8,5 +8,51 @@ body {
 }
 
 body {
-  @apply bg-gray-50 text-gray-900;
+  @apply bg-canvas text-primary-800 font-body antialiased;
+  background-image: radial-gradient(circle at 15% 0%, rgba(176, 213, 206, 0.35), transparent 45%),
+    radial-gradient(circle at 85% 0%, rgba(28, 134, 191, 0.12), transparent 40%);
+  background-attachment: fixed;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  @apply font-heading text-primary-900;
+  letter-spacing: -0.01em;
+}
+
+/* Slim, unobtrusive scrollbars that fit the premium aesthetic */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(23, 60, 141, 0.25) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(23, 60, 141, 0.25);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Reusable glass-panel utility for layered/elevated surfaces */
+.glass-panel {
+  @apply border border-white/60 bg-white/70 backdrop-blur-xl;
+}
+
+/* Subtle dotted-grid decorative backdrop, used sparingly behind hero sections */
+.grid-backdrop {
+  background-image: radial-gradient(rgba(23, 60, 141, 0.14) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Focus ring consistent with the brand palette, applied via focus-visible */
+:focus-visible {
+  outline: 2px solid theme('colors.secondary.500');
+  outline-offset: 2px;
+  border-radius: 6px;
 }
