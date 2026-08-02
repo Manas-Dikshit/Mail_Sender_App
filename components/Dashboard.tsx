@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { CampaignSummary, SendProgressEvent, ValidationOutcome } from '@/types';
 import { useToast } from '@/components/Toast';
+import { WorkflowTimeline } from '@/components/WorkflowTimeline';
 import UploadPanel from '@/components/UploadPanel';
 import ValidationSummary from '@/components/ValidationSummary';
 import InvalidEmailsTable from '@/components/InvalidEmailsTable';
@@ -60,7 +62,7 @@ export default function Dashboard() {
       remaining: outcome.summary.valid,
       total: outcome.summary.valid,
       percentage: 0,
-      status: 'Starting…',
+      status: 'Starting\u2026',
     });
 
     try {
@@ -112,26 +114,47 @@ export default function Dashboard() {
     }
   }, [outcome, showToast]);
 
+  const activeStep = useMemo(() => {
+    if (campaignSummary) return 5;
+    if (sending) return 3;
+    if (outcome) return 2;
+    return 0;
+  }, [outcome, sending, campaignSummary]);
+
   return (
     <div className="space-y-6">
+      <WorkflowTimeline activeStep={activeStep} />
+
       <UploadPanel onUpload={handleUpload} uploading={uploading} />
 
-      {outcome && (
-        <>
-          <ValidationSummary summary={outcome.summary} />
-          <InvalidEmailsTable rows={outcome.invalidRows} />
-          <SendPanel
-            validCount={outcome.summary.valid}
-            sending={sending}
-            progress={progress}
-            onSend={handleSend}
-          />
-        </>
-      )}
+      <AnimatePresence>
+        {outcome && (
+          <motion.div
+            key="validation-stage"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="space-y-6"
+          >
+            <ValidationSummary summary={outcome.summary} />
+            <InvalidEmailsTable rows={outcome.invalidRows} />
+            <SendPanel
+              validCount={outcome.summary.valid}
+              sending={sending}
+              progress={progress}
+              onSend={handleSend}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {campaignSummary && outcome && (
-        <CampaignSummaryPanel summary={campaignSummary} campaignId={outcome.campaignId} />
-      )}
+      <AnimatePresence>
+        {campaignSummary && outcome && (
+          <motion.div key="summary-stage" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <CampaignSummaryPanel summary={campaignSummary} campaignId={outcome.campaignId} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
