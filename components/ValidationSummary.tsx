@@ -1,23 +1,22 @@
+import { ListChecks, CheckCircle2, XCircle } from 'lucide-react';
 import type { ValidationSummary as ValidationSummaryType } from '@/types';
+import { Card, CardHeader } from '@/components/ui/card';
+import { StatCard } from '@/components/ui/stat-card';
 
 export default function ValidationSummary({ summary }: { summary: ValidationSummaryType }) {
-  const items = [
-    { label: 'Total Emails', value: summary.total, tone: 'text-gray-900' },
-    { label: 'Valid Emails', value: summary.valid, tone: 'text-green-600' },
-    { label: 'Invalid Emails', value: summary.invalid, tone: 'text-red-600' },
-  ];
-
   return (
-    <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="text-base font-semibold text-gray-900">2. Validation Summary</h2>
-      <div className="mt-4 grid grid-cols-3 gap-4">
-        {items.map((item) => (
-          <div key={item.label} className="rounded-md border border-gray-100 bg-gray-50 p-4 text-center">
-            <div className={`text-2xl font-semibold ${item.tone}`}>{item.value}</div>
-            <div className="mt-1 text-xs text-gray-500">{item.label}</div>
-          </div>
-        ))}
+    <Card delay={0.05}>
+      <CardHeader
+        eyebrow="Step 2"
+        title="Validation Summary"
+        description="Results of the 4-stage email validation pipeline"
+        icon={<ListChecks className="h-5 w-5" aria-hidden="true" />}
+      />
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        <StatCard label="Total" value={summary.total} icon={<ListChecks className="h-4 w-4" aria-hidden="true" />} tone="primary" index={0} />
+        <StatCard label="Valid" value={summary.valid} icon={<CheckCircle2 className="h-4 w-4" aria-hidden="true" />} tone="accent" index={1} />
+        <StatCard label="Invalid" value={summary.invalid} icon={<XCircle className="h-4 w-4" aria-hidden="true" />} tone="critical" index={2} />
       </div>
-    </section>
+    </Card>
   );
 }
