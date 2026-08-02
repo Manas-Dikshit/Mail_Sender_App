@@ -1,52 +1,57 @@
 'use client';
 
+import { motion } from 'framer-motion';
+import { PartyPopper, CheckCircle2, XCircle, Clock, FileSpreadsheet, FileText, FileJson, ScrollText, FileCode2 } from 'lucide-react';
 import type { CampaignSummary as CampaignSummaryType } from '@/types';
+import { Card, CardHeader } from '@/components/ui/card';
+import { StatCard } from '@/components/ui/stat-card';
 
 interface CampaignSummaryPanelProps {
   summary: CampaignSummaryType;
   campaignId: string;
 }
 
-const REPORT_TYPES: { type: 'excel' | 'csv' | 'html' | 'json' | 'log'; label: string }[] = [
-  { type: 'excel', label: 'Excel (.xlsx)' },
-  { type: 'csv', label: 'CSV' },
-  { type: 'html', label: 'HTML Summary' },
-  { type: 'json', label: 'JSON Summary' },
-  { type: 'log', label: 'Workflow Log' },
+const REPORT_TYPES: { type: 'excel' | 'csv' | 'html' | 'json' | 'log'; label: string; icon: typeof FileSpreadsheet }[] = [
+  { type: 'excel', label: 'Excel (.xlsx)', icon: FileSpreadsheet },
+  { type: 'csv', label: 'CSV', icon: FileText },
+  { type: 'html', label: 'HTML Summary', icon: FileCode2 },
+  { type: 'json', label: 'JSON Summary', icon: FileJson },
+  { type: 'log', label: 'Workflow Log', icon: ScrollText },
 ];
 
 export default function CampaignSummaryPanel({ summary, campaignId }: CampaignSummaryPanelProps) {
-  const items = [
-    { label: 'Total', value: summary.total, tone: 'text-gray-900' },
-    { label: 'Sent', value: summary.sent, tone: 'text-green-600' },
-    { label: 'Failed', value: summary.failed, tone: 'text-red-600' },
-    { label: 'Skipped', value: summary.skipped, tone: 'text-yellow-600' },
-  ];
-
   return (
-    <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="text-base font-semibold text-gray-900">5. Campaign Summary</h2>
+    <Card delay={0.2} glow>
+      <CardHeader
+        eyebrow="Step 5"
+        title="Campaign Summary"
+        description="Download the full report in any format"
+        icon={<PartyPopper className="h-5 w-5" aria-hidden="true" />}
+      />
 
-      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {items.map((item) => (
-          <div key={item.label} className="rounded-md border border-gray-100 bg-gray-50 p-4 text-center">
-            <div className={`text-2xl font-semibold ${item.tone}`}>{item.value}</div>
-            <div className="mt-1 text-xs text-gray-500">{item.label}</div>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Total" value={summary.total} icon={<PartyPopper className="h-4 w-4" aria-hidden="true" />} tone="primary" index={0} />
+        <StatCard label="Sent" value={summary.sent} icon={<CheckCircle2 className="h-4 w-4" aria-hidden="true" />} tone="accent" index={1} />
+        <StatCard label="Failed" value={summary.failed} icon={<XCircle className="h-4 w-4" aria-hidden="true" />} tone="critical" index={2} />
+        <StatCard label="Skipped" value={summary.skipped} icon={<Clock className="h-4 w-4" aria-hidden="true" />} tone="secondary" index={3} />
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2">
-        {REPORT_TYPES.map((report) => (
-          <a
-            key={report.type}
-            href={`/api/report?campaignId=${encodeURIComponent(campaignId)}&type=${report.type}`}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+      <div className="mt-6 flex flex-wrap gap-2.5">
+        {REPORT_TYPES.map(({ type, label, icon: Icon }, i) => (
+          <motion.a
+            key={type}
+            href={`/api/report?campaignId=${encodeURIComponent(campaignId)}&type=${type}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 + i * 0.05 }}
+            whileHover={{ y: -2 }}
+            className="inline-flex items-center gap-2 rounded-xl2 border border-primary-200 bg-white/80 px-3.5 py-2 text-sm font-medium text-primary-700 shadow-soft transition-colors hover:border-secondary-300 hover:bg-secondary-50"
           >
-            Download {report.label}
-          </a>
+            <Icon className="h-4 w-4 text-secondary-600" aria-hidden="true" />
+            {label}
+          </motion.a>
         ))}
       </div>
-    </section>
+    </Card>
   );
 }
