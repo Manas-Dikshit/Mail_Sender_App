@@ -38,6 +38,39 @@ export interface SendMailInput {
   html: string;
 }
 
+/**
+ * Verifies SMTP connectivity/auth quickly before entering the send loop.
+ * This fails fast for wrong credentials and avoids per-recipient retry churn.
+ */
+export async function verifySmtpConnection(timeoutMs = 2000): Promise<void> {
+  const client = getTransporter();
+
+  const verifyPromise = client.verify();
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(
+        new Error(
+          `SMTP pre-flight check timed out after ${timeoutMs}ms. Check Zoho SMTP host/port, network access, and credentials.`
+        )
+      );
+    }, timeoutMs);
+  });
+
+  try {
+    await Promise.race([verifyPromise, timeoutPromise]);
+  } catch (error) {
+    const err = error as { code?: string; responseCode?: number; message?: string };
+    const isAuthError = err.code === 'EAUTH' || err.responseCode === 535;
+
+    if (isAuthError) {
+      throw new Error('SMTP pre-flight failed: Zoho authentication failed. Check ZOHO_EMAIL and ZOHO_APP_PASSWORD.');
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`SMTP pre-flight failed: ${message}`);
+  }
+}
+
 /** Classifies a Nodemailer/SMTP error as retryable (transient) or not. */
 export function isTransientSmtpError(error: unknown): boolean {
   const err = error as { code?: string; responseCode?: number; message?: string };
