@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/requireAuth';
 import { campaignStore } from '@/lib/campaignStore';
-import { sendMail } from '@/services/smtpService';
+import { sendMail, verifySmtpConnection } from '@/services/smtpService';
 import { renderEmailForRecipient } from '@/services/templateService';
 import { waitForNextSendSlot } from '@/services/rateLimiter';
 import { sendWithRetry } from '@/services/retryHelper';
@@ -73,6 +73,16 @@ export async function POST(req: NextRequest) {
       }
 
       try {
+        send({
+          type: 'progress',
+          processed: 0,
+          remaining: total,
+          total,
+          percentage: 0,
+          status: 'Verifying SMTP connection...',
+        });
+        await verifySmtpConnection();
+
         let processed = 0;
         for (const result of sendableResults) {
           send({
