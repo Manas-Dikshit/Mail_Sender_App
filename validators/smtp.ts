@@ -1,4 +1,5 @@
 import net from 'net';
+import { sleep } from '@/utils/asyncUtils';
 
 export type SmtpProbeStatus =
   | 'VALID'
@@ -12,7 +13,9 @@ export interface SmtpProbeOutcome {
   reason: string;
 }
 
-const SMTP_TIMEOUT_MS = 8000;
+const SMTP_TIMEOUT_MS = parsePositiveInt(process.env.SMTP_PROBE_TIMEOUT_MS, 8000);
+const SMTP_PROBE_ATTEMPTS = parsePositiveInt(process.env.SMTP_PROBE_ATTEMPTS, 3);
+const SMTP_RETRY_BASE_DELAY_MS = parsePositiveInt(process.env.SMTP_PROBE_RETRY_BASE_DELAY_MS, 350);
 /** The identity we present in HELO/EHLO and MAIL FROM during verification. */
 const PROBE_FROM_ADDRESS = process.env.ZOHO_EMAIL || 'verify@localhost';
 const PROBE_HELO_DOMAIN = 'localhost';
@@ -26,6 +29,28 @@ const PROBE_HELO_DOMAIN = 'localhost';
  * third-party verification API is used, per project requirements.
  */
 export async function probeMailbox(mxHost: string, email: string): Promise<SmtpProbeOutcome> {
+  let lastRetryableOutcome: SmtpProbeOutcome | null = null;
+  for (let attempt = 1; attempt <= SMTP_PROBE_ATTEMPTS; attempt += 1) {
+    const outcome = await probeMailboxOnce(mxHost, email);
+    if (!isRetryableOutcome(outcome)) {
+      return outcome;
+    }
+    lastRetryableOutcome = outcome;
+
+    if (attempt < SMTP_PROBE_ATTEMPTS) {
+      await sleep(SMTP_RETRY_BASE_DELAY_MS * attempt);
+    }
+  }
+
+  return (
+    lastRetryableOutcome ?? {
+      status: 'UNKNOWN',
+      reason: 'SMTP probe failed before a server response was received.',
+    }
+  );
+}
+
+function probeMailboxOnce(mxHost: string, email: string): Promise<SmtpProbeOutcome> {
   return new Promise((resolve) => {
     let settled = false;
     let stage: 'connect' | 'banner' | 'ehlo' | 'mail' | 'rcpt' = 'connect';
@@ -48,10 +73,16 @@ export async function probeMailbox(mxHost: string, email: string): Promise<SmtpP
 
     socket.on('data', (data) => {
       buffer += data.toString();
-      if (!buffer.endsWith('\r\n')) return; // wait for full line(s)
-      const lastLine = buffer.trim().split('\r\n').pop() ?? '';
-      const code = parseInt(lastLine.slice(0, 3), 10);
-      buffer = '';
+      const lines = buffer.split('\r\n');
+      buffer = lines.pop() ?? '';
+
+      const terminalLine = lines.reverse().find((line) => /^\d{3}\s/.test(line));
+      if (!terminalLine) return;
+      const code = parseInt(terminalLine.slice(0, 3), 10);
+      if (Number.isNaN(code)) {
+        finish({ status: 'UNKNOWN', reason: `Unexpected SMTP response: "${terminalLine}"` });
+        return;
+      }
 
       if (stage === 'banner') {
         if (code >= 200 && code < 400) {
@@ -98,6 +129,16 @@ export async function probeMailbox(mxHost: string, email: string): Promise<SmtpP
       stage = 'banner';
     });
   });
+}
+
+function isRetryableOutcome(outcome: SmtpProbeOutcome): boolean {
+  return outcome.status === 'TEMPORARY_FAILURE' || outcome.status === 'UNKNOWN';
+}
+
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) return fallback;
+  return parsed;
 }
 
 /** Maps an SMTP reply code that rejected the probe into our status vocabulary. */
