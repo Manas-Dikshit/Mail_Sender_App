@@ -19,9 +19,10 @@ Login → Upload Excel → Read Emails → Validate Emails → Show Summary
 - **NextAuth** (Credentials provider, JWT sessions) — single admin account
   from environment variables, no signup/roles/user management
 - **Nodemailer** over **Zoho SMTP**
-- **No database.** Uploaded files live briefly in `uploads/`, generated
-  reports live in `reports/`, and in-progress campaign state lives in server
-  memory for the life of the process.
+- **No database.** Uploaded files and generated reports are written to a
+  writable runtime directory (project root in local/self-hosted runs,
+  `/tmp/internal-bulk-email-sender` on serverless runtimes), and in-progress
+  campaign state lives in server memory for the life of the process.
 
 ## Project structure
 
@@ -49,8 +50,8 @@ templates/                  → subject.txt and email.html (edit these to
                                change what gets sent)
 types/                      → shared TypeScript interfaces
 middleware.ts               → protects /admin/* routes
-uploads/                    → temporary storage for uploaded files
-reports/                    → generated Excel/CSV/HTML/JSON/log reports
+uploads/                    → temporary storage for uploaded files (local)
+reports/                    → generated Excel/CSV/HTML/JSON/log reports (local)
 ```
 
 ## Validation pipeline
@@ -165,11 +166,11 @@ npm run start
 
 - Set every variable from `.env.example` in your host's environment
   configuration (not committed to source control).
-- Deploy somewhere that keeps a **persistent, writable filesystem** for
-  `uploads/` and `reports/` — this app does not use object storage. A
-  container/VM with a persistent volume (or a traditional Node host) works;
-  purely serverless/ephemeral-filesystem platforms will lose uploaded files
-  and reports on cold start.
+- This app writes uploads/reports to local disk (`process.cwd()` locally, and
+  `/tmp/internal-bulk-email-sender` on serverless). On purely serverless
+  platforms, these files are **ephemeral** and can disappear between
+  invocations/cold starts. For durable report retention, use persistent object
+  storage.
 - Confirm outbound **port 25** is allowed for SMTP verification, and that
   your SMTP port (465/587) is allowed for sending.
 - Because state (campaign progress, validation/send results) lives in
