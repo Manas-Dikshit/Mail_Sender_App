@@ -71,11 +71,15 @@ first result) goes through:
 Possible statuses: `VALID`, `INVALID_FORMAT`, `INVALID_DOMAIN`,
 `INVALID_MAILBOX`, `ACCESS_DENIED`, `TEMPORARY_FAILURE`, `UNKNOWN`,
 `CATCH_ALL`. Both `VALID` and `CATCH_ALL` are treated as sendable.
+`TEMPORARY_FAILURE` / `UNKNOWN` mean verification was inconclusive (not proven
+invalid).
 
 > **Network note:** SMTP verification connects outbound on port 25. Some
 > hosting providers and ISPs block outbound port 25 by default. If you see
 > every address come back `UNKNOWN`, this is almost always why — check with
 > your host/provider or run the app from an environment that allows it.
+> The SMTP probe now retries transient failures automatically before marking
+> an address as inconclusive.
 
 ## Sending
 
@@ -134,6 +138,9 @@ Fill in `.env`:
 | `ZOHO_APP_PASSWORD` | A Zoho **app-specific password** (not your login password) |
 | `ZOHO_SMTP_HOST` | Usually `smtp.zoho.com` |
 | `ZOHO_SMTP_PORT` | `465` (implicit TLS) or `587` (STARTTLS) |
+| `SMTP_PROBE_TIMEOUT_MS` | Timeout (ms) per SMTP probe attempt (default `8000`) |
+| `SMTP_PROBE_ATTEMPTS` | Total attempts per MX host for transient errors (default `3`) |
+| `SMTP_PROBE_RETRY_BASE_DELAY_MS` | Backoff base delay in ms between probe retries (default `350`) |
 
 Generating a Zoho app password: Zoho Mail → **Security** → **App Passwords**
 → create one for "Mail"/"SMTP", and use that value (not your normal
