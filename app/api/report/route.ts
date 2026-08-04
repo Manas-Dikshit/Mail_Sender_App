@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
-import path from 'path';
 import { requireAuth } from '@/lib/requireAuth';
 import { campaignStore } from '@/lib/campaignStore';
 import { resolveSafePath } from '@/utils/fileUtils';
+import { getReportsDir } from '@/utils/runtimePaths';
 import type { ReportPaths } from '@/types';
 
-const REPORTS_DIR = path.join(process.cwd(), 'reports');
+const REPORTS_DIR = getReportsDir();
 
 const CONTENT_TYPES: Record<string, string> = {
   excel: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
