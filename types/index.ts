@@ -27,14 +27,24 @@ export const VALIDATION_STAGE_LABELS: Record<ValidationStatus, string> = {
   INVALID_FORMAT: 'Invalid format',
   INVALID_DOMAIN: 'Invalid domain (no MX record)',
   INVALID_MAILBOX: 'Mailbox does not exist',
-  ACCESS_DENIED: 'Server refused verification',
-  TEMPORARY_FAILURE: 'Temporary failure during verification',
+  ACCESS_DENIED: 'Server refused verification (could not confirm mailbox)',
+  TEMPORARY_FAILURE: 'Temporary verification failure (not confirmed invalid)',
   UNKNOWN: 'Could not be determined',
   CATCH_ALL: 'Domain accepts all mail (catch-all)',
 };
 
 /** Statuses that are treated as sendable. Catch-all domains are risky but deliverable. */
 export const SENDABLE_STATUSES: ValidationStatus[] = ['VALID', 'CATCH_ALL'];
+
+/** Statuses that are definitive validation failures. */
+export const HARD_INVALID_STATUSES: ValidationStatus[] = [
+  'INVALID_FORMAT',
+  'INVALID_DOMAIN',
+  'INVALID_MAILBOX',
+];
+
+/** Statuses where verification could not confidently determine deliverability. */
+export const UNCERTAIN_STATUSES: ValidationStatus[] = ['ACCESS_DENIED', 'TEMPORARY_FAILURE', 'UNKNOWN'];
 
 export interface ValidationResult {
   rowId: number;
@@ -48,6 +58,7 @@ export interface ValidationSummary {
   total: number;
   valid: number;
   invalid: number;
+  uncertain: number;
 }
 
 /** Result of the full validate step returned to the client. */
