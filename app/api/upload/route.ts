@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
-import path from 'path';
 import { requireAuth } from '@/lib/requireAuth';
 import { campaignStore } from '@/lib/campaignStore';
 import { parseUploadedFile, ExcelParseError } from '@/services/excelParser';
@@ -13,9 +12,10 @@ import {
   sanitizeFilename,
 } from '@/utils/fileUtils';
 import { generateId } from '@/utils/asyncUtils';
+import { ensureDirectoryExists, getUploadsDir } from '@/utils/runtimePaths';
 import type { ValidationOutcome } from '@/types';
 
-const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+const UPLOADS_DIR = getUploadsDir();
 
 export async function POST(req: NextRequest) {
   const auth = await requireAuth();
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const extension = getExtension(file.name) as '.xlsx' | '.csv';
 
     // Persist the original upload temporarily (sanitized name, path-traversal safe).
-    if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    ensureDirectoryExists(UPLOADS_DIR);
     const campaignId = generateId('campaign');
     const storedName = `${campaignId}_${sanitizeFilename(file.name)}`;
     fs.writeFileSync(resolveSafePath(UPLOADS_DIR, storedName), buffer);
