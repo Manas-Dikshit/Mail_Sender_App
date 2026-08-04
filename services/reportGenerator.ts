@@ -1,10 +1,10 @@
 import fs from 'fs';
-import path from 'path';
 import * as XLSX from 'xlsx';
 import type { CampaignSummary, InputRow, ReportPaths, SendResult, ValidationResult } from '@/types';
 import { resolveSafePath } from '@/utils/fileUtils';
+import { ensureDirectoryExists, getReportsDir } from '@/utils/runtimePaths';
 
-const REPORTS_DIR = path.join(process.cwd(), 'reports');
+const REPORTS_DIR = getReportsDir();
 
 interface ReportRow {
   rowId: number;
@@ -25,9 +25,7 @@ export interface GenerateReportInput {
 }
 
 function ensureReportsDir(): void {
-  if (!fs.existsSync(REPORTS_DIR)) {
-    fs.mkdirSync(REPORTS_DIR, { recursive: true });
-  }
+  ensureDirectoryExists(REPORTS_DIR);
 }
 
 function buildReportRows(input: GenerateReportInput): ReportRow[] {
