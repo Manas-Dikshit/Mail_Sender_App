@@ -13,7 +13,12 @@ import {
 } from '@/utils/fileUtils';
 import { generateId } from '@/utils/asyncUtils';
 import { ensureDirectoryExists, getUploadsDir } from '@/utils/runtimePaths';
-import type { ValidationOutcome } from '@/types';
+import {
+  HARD_INVALID_STATUSES,
+  SENDABLE_STATUSES,
+  UNCERTAIN_STATUSES,
+  type ValidationOutcome,
+} from '@/types';
 
 const UPLOADS_DIR = getUploadsDir();
 
@@ -63,17 +68,20 @@ export async function POST(req: NextRequest) {
     const validationResults = await validateRows(rows);
     campaignStore.update(campaignId, { validationResults });
 
-    const invalidRows = validationResults.filter((r) => r.status !== 'VALID' && r.status !== 'CATCH_ALL');
-    const validCount = validationResults.length - invalidRows.length;
+    const reviewRows = validationResults.filter((r) => !SENDABLE_STATUSES.includes(r.status));
+    const validCount = validationResults.filter((r) => SENDABLE_STATUSES.includes(r.status)).length;
+    const hardInvalidCount = validationResults.filter((r) => HARD_INVALID_STATUSES.includes(r.status)).length;
+    const uncertainCount = validationResults.filter((r) => UNCERTAIN_STATUSES.includes(r.status)).length;
 
     const outcome: ValidationOutcome = {
       campaignId,
       summary: {
         total: validationResults.length,
         valid: validCount,
-        invalid: invalidRows.length,
+        invalid: hardInvalidCount,
+        uncertain: uncertainCount,
       },
-      invalidRows,
+      invalidRows: reviewRows,
       results: validationResults,
     };
 
