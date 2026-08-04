@@ -12,7 +12,7 @@ export default function InvalidEmailsTable({ rows }: { rows: ValidationResult[] 
     <Card delay={0.1}>
       <CardHeader
         eyebrow="Step 3"
-        title="Invalid Emails"
+        title="Needs Attention"
         description={rows.length > 0 ? `${rows.length} address${rows.length === 1 ? '' : 'es'} need attention` : undefined}
         icon={<AlertTriangle className="h-5 w-5" aria-hidden="true" />}
       />
@@ -20,7 +20,8 @@ export default function InvalidEmailsTable({ rows }: { rows: ValidationResult[] 
       {rows.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl2 bg-accent-50 py-10 text-center">
           <CheckCircle2 className="h-8 w-8 text-accent-600" aria-hidden="true" />
-          <p className="text-sm font-semibold text-accent-700">No invalid emails found.</p>
+          <p className="text-sm font-semibold text-accent-700">No addresses need attention.</p>
+          <p className="text-xs text-accent-600">No non-sendable or uncertain addresses were found.</p>
         </div>
       ) : (
         <>
