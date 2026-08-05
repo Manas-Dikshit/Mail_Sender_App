@@ -13,8 +13,14 @@ export interface SmtpProbeOutcome {
   reason: string;
 }
 
-const SMTP_TIMEOUT_MS = parsePositiveInt(process.env.SMTP_PROBE_TIMEOUT_MS, 8000);
-const SMTP_PROBE_ATTEMPTS = parsePositiveInt(process.env.SMTP_PROBE_ATTEMPTS, 3);
+// Lowered from 8000/3 to 5000/2: this path is now only reached after
+// services/networkProbe.ts has already confirmed port 25 is reachable at
+// all, so remaining failures here are expected to be occasional flakiness
+// on a single host, not a systemically blocked network. Keeping these
+// smaller bounds the worst case per email instead of compounding retries
+// on top of retries.
+const SMTP_TIMEOUT_MS = parsePositiveInt(process.env.SMTP_PROBE_TIMEOUT_MS, 5000);
+const SMTP_PROBE_ATTEMPTS = parsePositiveInt(process.env.SMTP_PROBE_ATTEMPTS, 2);
 const SMTP_RETRY_BASE_DELAY_MS = parsePositiveInt(process.env.SMTP_PROBE_RETRY_BASE_DELAY_MS, 350);
 /** The identity we present in HELO/EHLO and MAIL FROM during verification. */
 const PROBE_FROM_ADDRESS = process.env.ZOHO_EMAIL || 'verify@localhost';
@@ -27,6 +33,11 @@ const PROBE_HELO_DOMAIN = 'localhost';
  *
  * This runs entirely locally against the recipient's own MX host — no
  * third-party verification API is used, per project requirements.
+ *
+ * Callers should check services/networkProbe.ts's isSmtpVerificationAvailable()
+ * once per batch before calling this per email — otherwise a systemically
+ * blocked network (common on serverless hosts) turns every call here into
+ * a full set of wasted retries instead of one clean early skip.
  */
 export async function probeMailbox(mxHost: string, email: string): Promise<SmtpProbeOutcome> {
   let lastRetryableOutcome: SmtpProbeOutcome | null = null;
