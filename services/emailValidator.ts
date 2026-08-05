@@ -3,19 +3,30 @@ import { checkSyntax } from '@/validators/syntax';
 import { checkMxRecords } from '@/validators/dns';
 import { probeMailbox } from '@/validators/smtp';
 import { checkCatchAll } from '@/validators/catchAll';
+import { isSmtpVerificationAvailable } from '@/services/networkProbe';
 
 interface SingleEmailOutcome {
   status: ValidationStatus;
   reason: string;
 }
 
+/** Upper bound on how many MX hosts we'll try per email, even when SMTP verification is available. */
+const MAX_MX_HOSTS_TRIED = 2;
+
 /**
  * Validates every row's email through the 4-stage pipeline described in the
  * spec (syntax → MX → SMTP → catch-all). Each unique email address is only
  * validated once per upload, even if it appears on multiple rows — the
  * result is reused for every duplicate row.
+ *
+ * Before touching any individual email, this checks ONCE whether outbound
+ * SMTP is even reachable from this environment. If it isn't (common on
+ * serverless hosts, or networks that block port 25), Stage 3/4 is skipped
+ * for the entire batch instead of every email separately timing out and
+ * retrying into the same dead end.
  */
 export async function validateRows(rows: InputRow[]): Promise<ValidationResult[]> {
+  const smtpAvailable = await isSmtpVerificationAvailable();
   const cache = new Map<string, Promise<SingleEmailOutcome>>();
 
   const results: ValidationResult[] = [];
@@ -24,7 +35,7 @@ export async function validateRows(rows: InputRow[]): Promise<ValidationResult[]
 
     let pending = cache.get(key);
     if (!pending) {
-      pending = validateSingleEmail(row.email);
+      pending = validateSingleEmail(row.email, smtpAvailable);
       cache.set(key, pending);
     }
     const outcome = await pending;
@@ -41,7 +52,7 @@ export async function validateRows(rows: InputRow[]): Promise<ValidationResult[]
   return results;
 }
 
-async function validateSingleEmail(email: string): Promise<SingleEmailOutcome> {
+async function validateSingleEmail(email: string, smtpAvailable: boolean): Promise<SingleEmailOutcome> {
   // Stage 1: syntax
   const syntax = checkSyntax(email);
   if (!syntax.passed) {
@@ -54,10 +65,20 @@ async function validateSingleEmail(email: string): Promise<SingleEmailOutcome> {
     return { status: 'INVALID_DOMAIN', reason: mx.reason };
   }
 
-  // Stage 3: SMTP verification (try MX hosts in priority order until one answers)
+  if (!smtpAvailable) {
+    return {
+      status: 'UNKNOWN',
+      reason:
+        'SMTP mailbox verification is unavailable in this environment (outbound port 25 appears blocked). Format and domain checks passed.',
+    };
+  }
+
+  // Stage 3: SMTP verification (try MX hosts in priority order until one answers,
+  // capped so a domain with many MX records can't multiply the worst case).
+  const hostsToTry = mx.mxHosts.slice(0, MAX_MX_HOSTS_TRIED);
   const smtpOutcomes = [] as Array<{ host: string; outcome: Awaited<ReturnType<typeof probeMailbox>> }>;
   let successfulHost: string | null = null;
-  for (const host of mx.mxHosts) {
+  for (const host of hostsToTry) {
     const outcome = await probeMailbox(host, email);
     smtpOutcomes.push({ host, outcome });
     if (outcome.status === 'VALID') {
