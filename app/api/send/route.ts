@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/requireAuth';
 import { campaignStore } from '@/lib/campaignStore';
 import { sendMail, verifySmtpConnection } from '@/services/smtpService';
-import { renderEmailForRecipient } from '@/services/templateService';
+import { renderEmailFromForm } from '@/services/templateService';
 import { waitForNextSendSlot } from '@/services/rateLimiter';
 import { sendWithRetry } from '@/services/retryHelper';
 import { generateReports } from '@/services/reportGenerator';
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
-  let body: { campaignId?: string };
+  let body: { campaignId?: string; senderName?: string; subject?: string; content?: string };
   try {
     body = await req.json();
   } catch {
@@ -24,6 +24,20 @@ export async function POST(req: NextRequest) {
   const campaignId = body.campaignId;
   if (!campaignId) {
     return NextResponse.json({ error: 'campaignId is required.' }, { status: 400 });
+  }
+
+  const senderName = body.senderName?.trim() ?? '';
+  const subject = body.subject?.trim() ?? '';
+  const content = body.content?.trim() ?? '';
+
+  if (!senderName) {
+    return NextResponse.json({ error: 'Your name is required to send emails.' }, { status: 400 });
+  }
+  if (!subject) {
+    return NextResponse.json({ error: 'An email subject is required.' }, { status: 400 });
+  }
+  if (!content) {
+    return NextResponse.json({ error: 'Email content is required.' }, { status: 400 });
   }
 
   const campaign = campaignStore.get(campaignId);
@@ -95,8 +109,14 @@ export async function POST(req: NextRequest) {
             status: `Sending to ${result.email}...`,
           });
 
-          const { subject, html } = renderEmailForRecipient(result.name);
-          const outcome = await sendWithRetry(() => sendMail({ to: result.email, subject, html }));
+          const { subject: renderedSubject, html } = renderEmailFromForm({
+            subject,
+            content,
+            recipientName: result.name,
+          });
+          const outcome = await sendWithRetry(() =>
+            sendMail({ to: result.email, subject: renderedSubject, html, fromName: senderName })
+          );
 
           sendResults.push({
             rowId: result.rowId,
