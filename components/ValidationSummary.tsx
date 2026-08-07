@@ -9,7 +9,7 @@ export default function ValidationSummary({ summary }: { summary: ValidationSumm
       <CardHeader
         eyebrow="Step 2"
         title="Validation Summary"
-        description="Results of the 4-stage email validation pipeline"
+        description="Results of email validation (syntax + domain mail-server check)"
         icon={<ListChecks className="h-5 w-5" aria-hidden="true" />}
       />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
