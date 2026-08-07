@@ -1,28 +1,4 @@
-import fs from 'fs';
-import path from 'path';
-
-const TEMPLATES_DIR = path.join(process.cwd(), 'templates');
-const SUBJECT_PATH = path.join(TEMPLATES_DIR, 'subject.txt');
-const HTML_PATH = path.join(TEMPLATES_DIR, 'email.html');
-
 const GENERIC_NAME_FALLBACK = 'there';
-
-let cachedSubject: string | null = null;
-let cachedHtml: string | null = null;
-
-function loadSubjectTemplate(): string {
-  if (cachedSubject === null) {
-    cachedSubject = fs.readFileSync(SUBJECT_PATH, 'utf-8').trim();
-  }
-  return cachedSubject;
-}
-
-function loadHtmlTemplate(): string {
-  if (cachedHtml === null) {
-    cachedHtml = fs.readFileSync(HTML_PATH, 'utf-8');
-  }
-  return cachedHtml;
-}
 
 /** Replaces {{name}} with the recipient's name, or a generic fallback if none was provided. */
 function renderPlaceholders(template: string, name: string | null): string {
@@ -30,8 +6,48 @@ function renderPlaceholders(template: string, name: string | null): string {
   return template.replace(/{{\s*name\s*}}/gi, displayName);
 }
 
-export function renderEmailForRecipient(name: string | null): { subject: string; html: string } {
-  const subject = renderPlaceholders(loadSubjectTemplate(), name);
-  const html = renderPlaceholders(loadHtmlTemplate(), name);
+export interface ComposeEmailInput {
+  /** Subject typed by the user in the send form. */
+  subject: string;
+  /** Plain-text body typed by the user in the send form. */
+  content: string;
+  /** Recipient name from the file, used to fill the {{name}} placeholder. */
+  recipientName: string | null;
+}
+
+/**
+ * Builds the final subject and HTML body from what the user typed in the
+ * compose form. The recipient's `{{name}}` placeholder (from the uploaded
+ * file's Name column) is substituted per recipient. The body is escaped and
+ * wrapped so the user's plain text renders safely as HTML.
+ */
+export function renderEmailFromForm(input: ComposeEmailInput): { subject: string; html: string } {
+  const subject = renderPlaceholders(input.subject.trim(), input.recipientName);
+  const html = buildHtmlBody(input.content, input.recipientName);
   return { subject, html };
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function buildHtmlBody(content: string, name: string | null): string {
+  const rendered = renderPlaceholders(content, name);
+  const paragraphs = rendered
+    .split(/\r?\n{2,}/)
+    .map((paragraph) => paragraph.replace(/\r?\n/g, '<br />').trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+    .join('\n    ');
+
+  return `<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, Helvetica, sans-serif; color: #1f2937; line-height: 1.6;">
+    ${paragraphs}
+  </body>
+</html>`;
 }
