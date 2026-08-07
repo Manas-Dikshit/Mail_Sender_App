@@ -8,3 +8,5 @@ reports/*
 !reports/.gitkeep
 npm-debug.log*
 .DS_Store
+.log
+.next-smoke.log
