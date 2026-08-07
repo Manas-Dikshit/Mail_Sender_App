@@ -36,6 +36,8 @@ export interface SendMailInput {
   to: string;
   subject: string;
   html: string;
+  /** Display name shown in the From header, e.g. "Jane Doe" <sender@zoho.com>. */
+  fromName?: string;
 }
 
 /**
@@ -92,8 +94,13 @@ export async function sendMail(input: SendMailInput): Promise<void> {
   const zohoEmail = process.env.ZOHO_EMAIL;
   const client = getTransporter();
 
+  // Strip anything that could break out of the From header (quotes, angle
+  // brackets, line breaks) before embedding the display name.
+  const safeName = (input.fromName ?? '').replace(/[<>"\r\n]/g, '').trim();
+  const from = safeName ? `"${safeName}" <${zohoEmail}>` : zohoEmail;
+
   await client.sendMail({
-    from: zohoEmail,
+    from,
     to: input.to,
     subject: input.subject,
     html: input.html,
