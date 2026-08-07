@@ -112,27 +112,18 @@ After filling in `.env` and running `npm run dev`, upload a small test file
 and click **Send Emails**. As of the latest backend update, the app performs
 a **pre-flight SMTP check** before sending anything — if `ZOHO_EMAIL`,
 `ZOHO_APP_PASSWORD`, `ZOHO_SMTP_HOST`, or `ZOHO_SMTP_PORT` are wrong, you'll
-get an immediate, specific error (e.g. *"Zoho rejected the SMTP credentials
-(535)..."*) instead of the app appearing to hang or silently failing each
-recipient.
+get an immediate, specific error instead of the app appearing to hang or
+silently failing each recipient.
 
 ---
 
-## Optional: tuning SMTP mailbox verification (Stage 3/4)
+## About validation
 
-These are **not required** — sensible defaults are used if unset — but are
-available for advanced tuning or diagnostics:
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `SMTP_VERIFICATION_DISABLED` | unset (`false`) | Set to `true` to skip Stage 3/4 entirely and rely on syntax + MX checks only. Use this on serverless hosts (Vercel, Netlify, Lambda) where outbound port 25 is always blocked — skips even the one-time reachability probe. |
-| `SMTP_REACHABILITY_PROBE_HOST` | `gmail-smtp-in.l.google.com` | The host used for the one-time-per-process "is port 25 reachable at all" check. Rarely needs changing. |
-| `SMTP_PROBE_TIMEOUT_MS` | `5000` | Per-attempt timeout for an individual mailbox SMTP probe. |
-| `SMTP_PROBE_ATTEMPTS` | `2` | Max attempts per MX host for a single mailbox probe (1 initial + retries). |
-| `SMTP_PROBE_RETRY_BASE_DELAY_MS` | `350` | Base backoff delay between probe retries. |
-
-If you're deploying to Netlify, Vercel, or another serverless platform,
-set `SMTP_VERIFICATION_DISABLED=true`. Outbound port 25 is unconditionally
-blocked on all of these — the app will still validate syntax and confirm
-the domain has a real mail server (MX record), it just can't confirm a
-specific mailbox exists or detect catch-all domains from that environment.
+Recipient email validation is now **2 stages only**: syntax check + DNS MX
+record lookup. SMTP mailbox verification (the old Stage 3/4) has been
+**removed** because it requires outbound port 25, which serverless hosts such
+as Vercel and AWS Lambda block. No tuning variables are needed — the old
+`SMTP_VERIFICATION_DISABLED`, `SMTP_REACHABILITY_PROBE_HOST`,
+`SMTP_PROBE_TIMEOUT_MS`, `SMTP_PROBE_ATTEMPTS`, and
+`SMTP_PROBE_RETRY_BASE_DELAY_MS` variables are obsolete and can be removed
+from your environment.
