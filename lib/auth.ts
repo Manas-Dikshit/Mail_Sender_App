@@ -49,5 +49,10 @@ export const authOptions: NextAuthConfig = {
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  // v5 prefers AUTH_SECRET; NEXTAUTH_SECRET is kept as a legacy fallback so
+  // either works in the Vercel project env (must exist at build+runtime).
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  // Explicit so the session/CSRF endpoints work on any host without relying
+  // on VERCEL/NODE_ENV inference (Vercel already sets this to true).
+  trustHost: true,
 };
