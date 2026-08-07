@@ -2,6 +2,11 @@ import type { NextAuthConfig } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
 export const authOptions: NextAuthConfig = {
+  // Explicit so the auth endpoints stay at /api/auth regardless of the
+  // AUTH_URL/NEXTAUTH_URL pathname. next-auth infers basePath from the URL's
+  // pathname (e.g. "https://site/login" would set basePath="/login" and make
+  // every /api/auth/* request fail with 400 "Bad request.").
+  basePath: '/api/auth',
   session: {
     strategy: 'jwt',
     maxAge: 60 * 60 * 8, // 8 hours
