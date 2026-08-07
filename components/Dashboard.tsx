@@ -8,7 +8,7 @@ import { WorkflowTimeline } from '@/components/WorkflowTimeline';
 import UploadPanel from '@/components/UploadPanel';
 import ValidationSummary from '@/components/ValidationSummary';
 import InvalidEmailsTable from '@/components/InvalidEmailsTable';
-import SendPanel from '@/components/SendPanel';
+import SendPanel, { type ComposePayload } from '@/components/SendPanel';
 import CampaignSummaryPanel from '@/components/CampaignSummaryPanel';
 
 export default function Dashboard() {
@@ -51,26 +51,32 @@ export default function Dashboard() {
     [showToast]
   );
 
-  const handleSend = useCallback(async () => {
-    if (!outcome) return;
+  const handleSend = useCallback(
+    async (payload: ComposePayload) => {
+      if (!outcome) return;
 
-    setSending(true);
-    setCampaignSummary(null);
-    setProgress({
-      type: 'progress',
-      processed: 0,
-      remaining: outcome.summary.valid,
-      total: outcome.summary.valid,
-      percentage: 0,
-      status: 'Starting\u2026',
-    });
-
-    try {
-      const res = await fetch('/api/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campaignId: outcome.campaignId }),
+      setSending(true);
+      setCampaignSummary(null);
+      setProgress({
+        type: 'progress',
+        processed: 0,
+        remaining: outcome.summary.valid,
+        total: outcome.summary.valid,
+        percentage: 0,
+        status: 'Starting\u2026',
       });
+
+      try {
+        const res = await fetch('/api/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: outcome.campaignId,
+            senderName: payload.senderName,
+            subject: payload.subject,
+            content: payload.content,
+          }),
+        });
 
       if (!res.ok || !res.body) {
         const data = await res.json().catch(() => ({}));
