@@ -25,6 +25,9 @@ const aName = detectNameColumn(aHeaders);
 console.log(`  email col: ${aEmail} | name col: ${aName}`);
 check('A: email column = Scraped_Email', aEmail === 'Scraped_Email', String(aEmail));
 check('A: NO name column (Brand_Name is NOT a name)', aName === null, String(aName));
+// Guardrail: brand-style columns must never be treated as a person's name.
+check('A: Brand_Name explicitly rejected as name', detectNameColumn(['Brand_Name', 'Website']) === null);
+check('A: brand still rejected even with "name" substring', detectNameColumn(['company_name']) === null, String(detectNameColumn(['company_name'])));
 
 const aRecipientName = aName ? 'x' : null; // excelParser logic
 const ra = renderEmailFromForm({
