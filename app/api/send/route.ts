@@ -109,13 +109,13 @@ export async function POST(req: NextRequest) {
             status: `Sending to ${result.email}...`,
           });
 
-          const { subject: renderedSubject, html } = renderEmailFromForm({
+          const { subject: renderedSubject, html, text } = renderEmailFromForm({
             subject,
             content,
             recipientName: result.name,
           });
           const outcome = await sendWithRetry(() =>
-            sendMail({ to: result.email, subject: renderedSubject, html, fromName: senderName })
+            sendMail({ to: result.email, subject: renderedSubject, html, text, fromName: senderName })
           );
 
           sendResults.push({
