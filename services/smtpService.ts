@@ -109,6 +109,9 @@ export async function sendMail(input: SendMailInput): Promise<void> {
     from,
     to: input.to,
     subject: input.subject,
+    // Include the text part only when present; with both set Nodemailer emits
+    // multipart/alternative (text/plain + text/html) with correct Content-Types.
+    ...(input.text ? { text: input.text } : {}),
     html: input.html,
   });
 }
