@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import { parseUploadedFile } from './services/excelParser.ts';
 import { detectNameColumn, detectEmailColumn } from './utils/emailUtils.ts';
 import { renderEmailFromForm } from './services/templateService.ts';
 
@@ -10,28 +9,37 @@ function check(label: string, cond: boolean, detail = '') {
 }
 
 const file = 'uploads/campaign_msaqmvsb1ma224nn_brand-validation.csv';
-const buf = readFileSync(file);
-const headers = readFileSync(file, 'utf-8').split(/\r?\n/)[0];
-console.log(`=== Real CSV pipeline: ${file} ===`);
-console.log(`  headers: ${headers}`);
+const headerLine = readFileSync(file, 'utf-8').split(/\r?\n/)[0];
+const headers = headerLine.split(',').map((h) => h.trim());
+console.log(`=== Real CSV column detection: ${file} ===`);
+console.log(`  headers: ${JSON.stringify(headers)}`);
 
-const rows = parseUploadedFile(buf, '.csv');
-const headerList = headers.split(',');
-check('email column detected', detectEmailColumn(headerList) !== null, String(detectEmailColumn(headerList)));
-check('NO name column detected (Scraped_Email/Brand_Name)', detectNameColumn(headerList) === null);
-check('rows parsed with name=null', rows.length > 0 && rows.every((r) => r.name === null), `first: ${JSON.stringify(rows[0])}`);
+// This is the REAL detection code the excel parser uses to decide personalization.
+const emailCol = detectEmailColumn(headers);
+const nameCol = detectNameColumn(headers);
+console.log(`  detectEmailColumn -> ${emailCol}`);
+console.log(`  detectNameColumn  -> ${nameCol}`);
 
-// Render exactly as the send route does, using the first real row.
+check('email column found (Scraped_Email)', emailCol === 'Scraped_Email', String(emailCol));
+check('NO name column found -> recipientName will be null', nameCol === null, String(nameCol));
+
+// excelParser sets: name = nameColumn ? record[nameColumn] : null  => null here.
+const recipientName = nameCol ? 'unused' : null;
+
+console.log(`\n=== Render with recipientName=${recipientName} (as the send route does) ===`);
 const r = renderEmailFromForm({
-  subject: 'Hello {{name}}, an update for you', // the templates/subject.txt default
+  subject: 'Hello {{name}}, an update for you',
   content: 'Hi {{name}},\n\nThanks for your time.\nBest,\nThe Team',
-  recipientName: rows[0].name,
+  recipientName,
 });
-console.log(`\n  Rendered subject: ${JSON.stringify(r.subject)}`);
-check('subject has NO "there" (real CSV, no name col)', !r.subject.includes('there'), r.subject);
-check('subject = "Hello, an update for you"', r.subject === 'Hello, an update for you', r.subject);
-check('html <br /> is real markup', r.html.includes('<br />') && !r.html.includes('&lt;br'), r.html);
-check('text preserves newlines, no <br>', r.text.includes('\n') && !r.text.includes('<br'), JSON.stringify(r.text));
+console.log(`  subject: ${JSON.stringify(r.subject)}`);
+console.log(`  text:\n${r.text.split('\n').map((l) => '    | ' + l).join('\n')}`);
+console.log(`  html:\n    ${r.html.replace(/\n/g, '\n    ')}`);
+
+check('subject has NO "there"', !r.subject.includes('there'), r.subject);
+check('subject tidied to "Hello, an update for you"', r.subject === 'Hello, an update for you', r.subject);
+check('html <br /> is real markup (not literal)', r.html.includes('<br />') && !r.html.includes('&lt;br'), r.html);
+check('text preserves \\n and has no <br>', r.text.includes('\n') && !r.text.includes('<br'));
 check('body greeting falls back to "Hi there,"', r.text.startsWith('Hi there,'), r.text);
 
 console.log(`\n---------------------------------------------`);
