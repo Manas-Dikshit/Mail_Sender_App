@@ -36,6 +36,12 @@ export interface SendMailInput {
   to: string;
   subject: string;
   html: string;
+  /**
+   * Plain-text alternative body. When provided alongside `html`, Nodemailer
+   * builds a multipart/alternative message so text-only clients get real
+   * newlines (never "<br />") and HTML clients get the text/html part.
+   */
+  text?: string;
   /** Display name shown in the From header, e.g. "Jane Doe" <sender@zoho.com>. */
   fromName?: string;
 }
