@@ -13,8 +13,24 @@ export function extractDomain(email: string): string {
 /** Column header names we recognize as containing the email address. */
 const EMAIL_HEADER_CANDIDATES = ['email', 'e-mail', 'email address', 'emailaddress', 'mail'];
 
-/** Column header names we recognize as containing a person's name. */
-const NAME_HEADER_CANDIDATES = ['name', 'full name', 'fullname', 'first name', 'firstname'];
+/**
+ * Column header names we recognize as containing a person's name, matched
+ * EXACTLY (after normalization). Kept exact on purpose: a fuzzy "contains name"
+ * rule would wrongly treat columns like "Brand_Name" as a person's name and
+ * push brand names into {{name}}. "contact name"/"recipient name" are common in
+ * lead sheets and are unambiguous, so they're safe to add.
+ */
+const NAME_HEADER_CANDIDATES = [
+  'name',
+  'full name',
+  'fullname',
+  'first name',
+  'firstname',
+  'contact name',
+  'contactname',
+  'recipient name',
+  'recipientname',
+];
 
 function normalizeHeader(header: string): string {
   return header.trim().toLowerCase();
