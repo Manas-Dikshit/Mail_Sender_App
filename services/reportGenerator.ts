@@ -10,12 +10,16 @@ interface ReportRow {
   rowId: number;
   name: string;
   email: string;
+  valid: string;
+  sent: string;
+  sentAt: string;
+  error: string;
   validationStatus: string;
   sendStatus: string;
   attempts: number | string;
-  error: string;
-  timestamp: string;
 }
+
+const SENDABLE_STATUSES = new Set(['VALID', 'CATCH_ALL']);
 
 export interface GenerateReportInput {
   campaignId: string;
@@ -35,17 +39,31 @@ function buildReportRows(input: GenerateReportInput): ReportRow[] {
   return input.rows.map((row) => {
     const validation = validationByRow.get(row.rowId);
     const send = sendByRow.get(row.rowId);
+    const validationStatus = validation?.status ?? 'UNKNOWN';
+    const sendStatus = send?.sendStatus ?? (input.sendResults ? 'SKIPPED' : 'NOT_ATTEMPTED');
     return {
       rowId: row.rowId,
       name: row.name ?? '',
       email: row.email,
-      validationStatus: validation?.status ?? 'UNKNOWN',
-      sendStatus: send?.sendStatus ?? (input.sendResults ? 'SKIPPED' : 'NOT_ATTEMPTED'),
-      attempts: send?.attempts ?? 0,
+      valid: SENDABLE_STATUSES.has(validationStatus) ? 'Valid' : 'Invalid',
+      sent: sendStatus === 'SENT' ? 'Sent' : 'Not Sent',
+      sentAt: sendStatus === 'SENT' ? toLocalDateTimeString(send?.timestamp) : '',
       error: send?.error ?? validation?.reason ?? '',
-      timestamp: send?.timestamp ?? '',
+      validationStatus,
+      sendStatus,
+      attempts: send?.attempts ?? 0,
     };
   });
+}
+
+/** Formats an ISO timestamp as an exact local date-time (server system timezone). */
+function toLocalDateTimeString(iso: string | undefined): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return String(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
+    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 function computeSummary(sendResults: SendResult[] | null): CampaignSummary {
@@ -60,21 +78,12 @@ function computeSummary(sendResults: SendResult[] | null): CampaignSummary {
   };
 }
 
-const SHEET_HEADERS = [
-  'Row ID',
-  'Name',
-  'Email',
-  'Validation Status',
-  'Send Status',
-  'Attempts',
-  'Error',
-  'Timestamp',
-];
+const SHEET_HEADERS = ['Email', 'Valid/Invalid', 'Sent/Not Sent', 'Sent At', 'Error/Reason'];
 
 function toSheetData(rows: ReportRow[]): (string | number)[][] {
   return [
     SHEET_HEADERS,
-    ...rows.map((r) => [r.rowId, r.name, r.email, r.validationStatus, r.sendStatus, r.attempts, r.error, r.timestamp]),
+    ...rows.map((r) => [r.email, r.valid, r.sent, r.sentAt, r.error]),
   ];
 }
 
@@ -112,11 +121,7 @@ function toCsv(rows: ReportRow[]): string {
   };
   const lines = [SHEET_HEADERS.join(',')];
   for (const r of rows) {
-    lines.push(
-      [r.rowId, r.name, r.email, r.validationStatus, r.sendStatus, r.attempts, r.error, r.timestamp]
-        .map(escape)
-        .join(',')
-    );
+    lines.push([r.email, r.valid, r.sent, r.sentAt, r.error].map(escape).join(','));
   }
   return lines.join('\n');
 }
@@ -125,9 +130,8 @@ function toHtml(rows: ReportRow[], summary: CampaignSummary, campaignId: string)
   const rowsHtml = rows
     .map(
       (r) => `<tr>
-        <td>${r.rowId}</td><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.email)}</td>
-        <td>${r.validationStatus}</td><td>${r.sendStatus}</td><td>${r.attempts}</td>
-        <td>${escapeHtml(r.error)}</td><td>${r.timestamp}</td>
+        <td>${escapeHtml(r.email)}</td><td>${r.valid}</td><td>${r.sent}</td>
+        <td>${escapeHtml(r.sentAt)}</td><td>${escapeHtml(r.error)}</td>
       </tr>`
     )
     .join('\n');
@@ -156,7 +160,7 @@ function toHtml(rows: ReportRow[], summary: CampaignSummary, campaignId: string)
     <div>Skipped<br /><strong>${summary.skipped}</strong></div>
   </div>
   <table>
-    <thead><tr><th>Row ID</th><th>Name</th><th>Email</th><th>Validation Status</th><th>Send Status</th><th>Attempts</th><th>Error</th><th>Timestamp</th></tr></thead>
+    <thead><tr><th>Email</th><th>Valid/Invalid</th><th>Sent/Not Sent</th><th>Sent At</th><th>Error/Reason</th></tr></thead>
     <tbody>${rowsHtml}</tbody>
   </table>
 </body>

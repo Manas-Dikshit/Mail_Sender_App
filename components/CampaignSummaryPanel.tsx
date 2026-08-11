@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { PartyPopper, CheckCircle2, XCircle, Clock, FileSpreadsheet, FileText, FileJson, ScrollText, FileCode2 } from 'lucide-react';
+import { PartyPopper, CheckCircle2, XCircle, Clock, FileSpreadsheet, FileText, FileJson, ScrollText, FileCode2, Download } from 'lucide-react';
 import type { CampaignSummary as CampaignSummaryType } from '@/types';
 import { Card, CardHeader } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
@@ -36,7 +36,19 @@ export default function CampaignSummaryPanel({ summary, campaignId }: CampaignSu
         <StatCard label="Skipped" value={summary.skipped} icon={<Clock className="h-4 w-4" aria-hidden="true" />} tone="secondary" index={3} />
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-2.5">
+      <div className="mt-6">
+        <motion.a
+          href={`/api/report?campaignId=${encodeURIComponent(campaignId)}&type=excel`}
+          whileHover={{ y: -2 }}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl2 bg-gradient-to-b from-primary-500 to-primary-600 px-6 py-3 text-base font-semibold tracking-wide text-canvas-soft shadow-card transition-colors hover:from-primary-400 hover:to-primary-500 sm:w-auto"
+        >
+          <Download className="h-5 w-5" aria-hidden="true" />
+          Download Excel Report
+        </motion.a>
+      </div>
+
+      <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-primary-400">Other formats</div>
+      <div className="mt-2 flex flex-wrap gap-2.5">
         {REPORT_TYPES.map(({ type, label, icon: Icon }, i) => (
           <motion.a
             key={type}
