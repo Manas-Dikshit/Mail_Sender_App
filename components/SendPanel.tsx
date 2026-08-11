@@ -153,7 +153,7 @@ export default function SendPanel({
           </div>
 
           {missing.length > 0 && (
-            <div className="mt-3 flex items-start gap-2 rounded-xl2 border border-critical-200 bg-critical-50 px-3 py-2.5 text-xs text-critical-700">
+            <div className="mt-3 flex items-start gap-2 rounded-xl2 border border-accent-300 bg-accent-50 px-3 py-2.5 text-xs text-accent-700">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span>
                 These placeholders have no matching spreadsheet column, so emails cannot be sent until they are
