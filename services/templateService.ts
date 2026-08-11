@@ -57,21 +57,86 @@ export function loadTemplateHtml(): TemplateInfo | null {
   }
 }
 
+/** Splits a header/placeholder into a set of lowercase word tokens (ignores separators). */
+function tokenize(value: string): Set<string> {
+  return new Set((value.toLowerCase().match(/[a-z0-9]+/g) ?? []));
+}
+
+function isSubset(sub: Set<string>, sup: Set<string>): boolean {
+  for (const token of sub) {
+    if (!sup.has(token)) return false;
+  }
+  return true;
+}
+
+function setsEqual(a: Set<string>, b: Set<string>): boolean {
+  return a.size === b.size && isSubset(a, b);
+}
+
+interface ColumnCandidate {
+  header: string;
+  score: number;
+}
+
 /**
- * Maps every placeholder to a spreadsheet column header. Each placeholder is
- * matched case-insensitively while ignoring spaces, hyphens and underscores.
+ * Picks the best-matching column for a placeholder.
+ * - Perfect/exact matches always win and are the strictest.
+ * - For MULTI-WORD placeholders only (e.g. {{PRODUCT_CATEGORY}}), we additionally
+ *   accept naming variants: re-ordered tokens, a column that is a superset
+ *   ("My Product Category"), or a shorthand subset ("Category" for
+ *   "Product Category", "Brand" for "Brand_Name"). We never add subset/superset
+ *   fuzziness for single-word placeholders (like {{NAME}}) so a "Brand Name"
+ *   column is never mistaken for a person's name.
+ */
+export function matchColumn(placeholder: string, headers: string[]): string | null {
+  const phNorm = normalizeField(placeholder);
+  const phTokens = tokenize(placeholder);
+  const multiWord = phTokens.size > 1;
+
+  let best: ColumnCandidate | null = null;
+  const assign = (header: string, score: number) => {
+    if (!best || score > best.score) best = { header, score };
+  };
+
+  for (const header of headers) {
+    const hNorm = normalizeField(header);
+
+    // 1) Exact normalized equality (case/space/hyphen/underscore-insensitive).
+    if (hNorm === phNorm) {
+      return header;
+    }
+    if (!multiWord) continue; // single-word placeholders match only exactly
+
+    const hTokens = tokenize(header);
+
+    // 2) Same words, different order/separators ("Category Product").
+    if (setsEqual(phTokens, hTokens)) {
+      assign(header, 90);
+      continue;
+    }
+    // 3) Column contains every placeholder word ("Customer Product Category Info").
+    if (isSubset(phTokens, hTokens)) {
+      assign(header, 80);
+      continue;
+    }
+    // 4) Column is a shorthand of the placeholder ("Category" for Product Category).
+    if (isSubset(hTokens, phTokens)) {
+      assign(header, 70);
+    }
+  }
+
+  return best?.header ?? null;
+}
+
+/**
+ * Maps every placeholder to a spreadsheet column header (case-insensitive,
+ * ignoring spaces/hyphens/underscores, plus tolerant multi-word variants).
  * A placeholder that matches no column is reported as missing.
  */
 export function buildPlaceholderMapping(
   placeholders: string[],
   headers: string[]
 ): PlaceholderMapping {
-  const headerByNorm = new Map<string, string>();
-  for (const header of headers) {
-    const norm = normalizeField(header);
-    if (!headerByNorm.has(norm)) headerByNorm.set(norm, header);
-  }
-
   const unique = new Map<string, string>(); // normalized -> display name
   for (const placeholder of placeholders) {
     const norm = normalizeField(placeholder);
@@ -81,7 +146,7 @@ export function buildPlaceholderMapping(
   const byPlaceholder: Record<string, string | null> = {};
   const missing: string[] = [];
   for (const [norm, display] of unique.entries()) {
-    const column = headerByNorm.get(norm) ?? null;
+    const column = matchColumn(display, headers);
     byPlaceholder[norm] = column;
     if (!column) missing.push(display);
   }
