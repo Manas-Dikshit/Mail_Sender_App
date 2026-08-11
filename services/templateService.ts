@@ -93,10 +93,8 @@ export function matchColumn(placeholder: string, headers: string[]): string | nu
   const phTokens = tokenize(placeholder);
   const multiWord = phTokens.size > 1;
 
-  let best: ColumnCandidate | null = null;
-  const assign = (header: string, score: number) => {
-    if (!best || score > best.score) best = { header, score };
-  };
+  let bestScore = -1;
+  let bestHeader: string | null = null;
 
   for (const header of headers) {
     const hNorm = normalizeField(header);
@@ -111,21 +109,30 @@ export function matchColumn(placeholder: string, headers: string[]): string | nu
 
     // 2) Same words, different order/separators ("Category Product").
     if (setsEqual(phTokens, hTokens)) {
-      assign(header, 90);
+      if (90 > bestScore) {
+        bestScore = 90;
+        bestHeader = header;
+      }
       continue;
     }
     // 3) Column contains every placeholder word ("Customer Product Category Info").
     if (isSubset(phTokens, hTokens)) {
-      assign(header, 80);
+      if (80 > bestScore) {
+        bestScore = 80;
+        bestHeader = header;
+      }
       continue;
     }
     // 4) Column is a shorthand of the placeholder ("Category" for Product Category).
     if (isSubset(hTokens, phTokens)) {
-      assign(header, 70);
+      if (70 > bestScore) {
+        bestScore = 70;
+        bestHeader = header;
+      }
     }
   }
 
-  return best?.header ?? null;
+  return bestHeader;
 }
 
 /**
