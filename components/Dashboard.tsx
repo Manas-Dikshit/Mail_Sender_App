@@ -8,7 +8,7 @@ import { WorkflowTimeline } from '@/components/WorkflowTimeline';
 import UploadPanel from '@/components/UploadPanel';
 import ValidationSummary from '@/components/ValidationSummary';
 import InvalidEmailsTable from '@/components/InvalidEmailsTable';
-import SendPanel, { type ComposePayload } from '@/components/SendPanel';
+import SendPanel from '@/components/SendPanel';
 import CampaignSummaryPanel from '@/components/CampaignSummaryPanel';
 
 export default function Dashboard() {

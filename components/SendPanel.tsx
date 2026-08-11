@@ -258,7 +258,7 @@ export default function SendPanel({
                 </Button>
               </div>
               {!canSend && validCount > 0 && missing.length > 0 && (
-                <p className="flex items-center gap-1 text-sm text-critical-600">
+                <p className="flex items-center gap-1 text-sm text-accent-700">
                   <Mail className="h-4 w-4" aria-hidden="true" />
                   Resolve missing placeholders to send.
                 </p>
