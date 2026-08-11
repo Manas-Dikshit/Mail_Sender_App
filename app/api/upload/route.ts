@@ -90,6 +90,9 @@ export async function POST(req: NextRequest) {
       },
       invalidRows: reviewRows,
       results: validationResults,
+      headers,
+      template,
+      mapping: templateMapping,
     };
 
     return NextResponse.json(outcome);

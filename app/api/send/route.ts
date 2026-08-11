@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/requireAuth';
 import { campaignStore } from '@/lib/campaignStore';
 import { sendMail, verifySmtpConnection } from '@/services/smtpService';
-import { renderEmailFromForm } from '@/services/templateService';
+import { renderEmailFromForm, renderTemplate } from '@/services/templateService';
 import { waitForNextSendSlot } from '@/services/rateLimiter';
 import { sendWithRetry } from '@/services/retryHelper';
 import { generateReports } from '@/services/reportGenerator';
-import { SENDABLE_STATUSES, type SendProgressEvent, type SendResult } from '@/types';
+import { SENDABLE_STATUSES, type SendProgressEvent, type SendResult, type RenderedEmail } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,12 +33,6 @@ export async function POST(req: NextRequest) {
   if (!senderName) {
     return NextResponse.json({ error: 'Your name is required to send emails.' }, { status: 400 });
   }
-  if (!subject) {
-    return NextResponse.json({ error: 'An email subject is required.' }, { status: 400 });
-  }
-  if (!content) {
-    return NextResponse.json({ error: 'Email content is required.' }, { status: 400 });
-  }
 
   const campaign = campaignStore.get(campaignId);
   if (!campaign) {
@@ -49,6 +43,37 @@ export async function POST(req: NextRequest) {
   }
   if (campaign.sending) {
     return NextResponse.json({ error: 'Sending is already in progress for this campaign.' }, { status: 409 });
+  }
+
+  // Template mode (primary): subject/body come from template.html + the row, so
+  // no manual subject/body are needed. If the template is missing or a required
+  // placeholder is unmapped we refuse to send rather than emit {{PLACEHOLDER}}.
+  const template = campaign.template;
+  const mapping = campaign.templateMapping;
+  const canUseTemplate = Boolean(template && mapping && mapping.missing.length === 0);
+
+  if (canUseTemplate) {
+    if (!content && !subject) {
+      // fall through — nothing extra required
+    }
+  } else {
+    if (template && mapping && mapping.missing.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            'Cannot send: these template placeholders have no matching spreadsheet column: ' +
+            mapping.missing.join(', '),
+        },
+        { status: 400 }
+      );
+    }
+    // Fallback to the manual compose path when no template is available.
+    if (!subject) {
+      return NextResponse.json({ error: 'An email subject is required.' }, { status: 400 });
+    }
+    if (!content) {
+      return NextResponse.json({ error: 'Email content is required.' }, { status: 400 });
+    }
   }
 
   const sendableResults = campaign.validationResults.filter((r) => SENDABLE_STATUSES.includes(r.status));
@@ -97,6 +122,10 @@ export async function POST(req: NextRequest) {
         });
         await verifySmtpConnection();
 
+        const rowByRowId = new Map<number, Record<string, unknown>>(
+          campaign.rows.map((r) => [r.rowId, r.raw])
+        );
+
         let processed = 0;
         for (const result of sendableResults) {
           send({
@@ -109,13 +138,20 @@ export async function POST(req: NextRequest) {
             status: `Sending to ${result.email}...`,
           });
 
-          const { subject: renderedSubject, html, text } = renderEmailFromForm({
-            subject,
-            content,
-            recipientName: result.name,
-          });
+          // Render this recipient's personalization from the template + this row.
+          // Never pass the unrendered template or a shared subject to sendMail.
+          const rendered: RenderedEmail = canUseTemplate && template && mapping
+            ? renderTemplate(template, mapping, rowByRowId.get(result.rowId) ?? {})
+            : renderEmailFromForm({ subject, content, recipientName: result.name });
+
           const outcome = await sendWithRetry(() =>
-            sendMail({ to: result.email, subject: renderedSubject, html, text, fromName: senderName })
+            sendMail({
+              to: result.email,
+              subject: rendered.subject,
+              html: rendered.html,
+              text: rendered.text,
+              fromName: senderName,
+            })
           );
 
           sendResults.push({
