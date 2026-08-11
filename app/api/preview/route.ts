@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/requireAuth';
 import { campaignStore } from '@/lib/campaignStore';
 import { renderTemplate, type RenderedEmail } from '@/services/templateService';
-import { SENDABLE_STATUSES, type TemplateInfo } from '@/types';
+import { SENDABLE_STATUSES } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
       filename: template.filename,
       title: template.title,
       placeholders: template.placeholders,
-    } satisfies TemplateInfo,
+    },
     mapping,
     recipients,
     preview,
