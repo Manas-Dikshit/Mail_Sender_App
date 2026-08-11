@@ -143,9 +143,13 @@ export default function Dashboard() {
             <ValidationSummary summary={outcome.summary} />
             <InvalidEmailsTable rows={outcome.invalidRows} />
             <SendPanel
+              campaignId={outcome.campaignId}
               validCount={outcome.summary.valid}
+              invalidCount={outcome.summary.invalid + outcome.summary.uncertain}
               sending={sending}
               progress={progress}
+              template={outcome.template}
+              mapping={outcome.mapping}
               onSend={handleSend}
             />
           </motion.div>
