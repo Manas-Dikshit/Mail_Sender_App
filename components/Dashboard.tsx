@@ -52,7 +52,7 @@ export default function Dashboard() {
   );
 
   const handleSend = useCallback(
-    async (senderName: string) => {
+    async (senderName: string, columnMap: Record<string, string>) => {
       if (!outcome) return;
 
       setSending(true);
@@ -73,6 +73,7 @@ export default function Dashboard() {
           body: JSON.stringify({
             campaignId: outcome.campaignId,
             senderName,
+            columnMap,
           }),
         });
 
@@ -150,6 +151,7 @@ export default function Dashboard() {
               progress={progress}
               template={outcome.template}
               mapping={outcome.mapping}
+              headers={outcome.headers}
               onSend={handleSend}
             />
           </motion.div>
