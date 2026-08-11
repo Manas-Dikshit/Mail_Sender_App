@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/requireAuth';
 import { campaignStore } from '@/lib/campaignStore';
-import { renderTemplate, type RenderedEmail } from '@/services/templateService';
+import {
+  applyMappingOverrides,
+  buildPlaceholderMapping,
+  renderTemplate,
+  type RenderedEmail,
+} from '@/services/templateService';
 import { SENDABLE_STATUSES } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +21,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
-  let body: { campaignId?: string; rowId?: number };
+  let body: { campaignId?: string; rowId?: number; columnMap?: Record<string, string> };
   try {
     body = await req.json();
   } catch {
@@ -37,9 +42,17 @@ export async function POST(req: NextRequest) {
   }
 
   const template = campaign.template;
-  const mapping = campaign.templateMapping;
-  if (!template || !mapping) {
+  if (!template) {
     return NextResponse.json({ error: 'No template is available for preview.' }, { status: 400 });
+  }
+
+  let mapping = campaign.templateMapping;
+  if (campaign.headers && template.placeholders.length > 0) {
+    mapping = buildPlaceholderMapping(template.placeholders, campaign.headers);
+    mapping = applyMappingOverrides(mapping, body.columnMap ?? {});
+  }
+  if (!mapping) {
+    return NextResponse.json({ error: 'No template mapping is available for preview.' }, { status: 400 });
   }
 
   const sendables = campaign.validationResults.filter((r) => SENDABLE_STATUSES.includes(r.status));

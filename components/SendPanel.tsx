@@ -47,7 +47,13 @@ interface SendPanelProps {
   progress: SendProgressEvent | null;
   template: TemplateInfo | null;
   mapping: PlaceholderMapping | null;
-  onSend: (senderName: string) => void;
+  headers: string[];
+  onSend: (senderName: string, columnMap: Record<string, string>) => void;
+}
+
+/** Client-safe equivalent of the server's normalizeField. */
+function normalizeField(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s\-_]+/g, '');
 }
 
 const FIELD_CLASS =
@@ -61,21 +67,29 @@ export default function SendPanel({
   progress,
   template,
   mapping,
+  headers,
   onSend,
 }: SendPanelProps) {
   const [senderName, setSenderName] = useState('');
   const [previewing, setPreviewing] = useState(false);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<number | undefined>(undefined);
+  const [columnMap, setColumnMap] = useState<Record<string, string>>({});
 
   const missing = mapping?.missing ?? [];
   const hasTemplate = Boolean(template && mapping);
-  const canSend = validCount > 0 && hasTemplate && missing.length === 0 && !sending;
+
+  // A placeholder is unresolved when it was auto-missing and the user has not
+  // manually assigned a column to it.
+  const unresolved = missing.filter((p) => !columnMap[normalizeField(p)]);
+  const totalCount = mapping?.totalCount ?? 0;
+  const mappedCount = totalCount - unresolved.length;
+  const canSend = validCount > 0 && hasTemplate && unresolved.length === 0 && !sending;
 
   const handleSend = (e: FormEvent) => {
     e.preventDefault();
     if (!senderName.trim()) return;
-    onSend(senderName.trim());
+    onSend(senderName.trim(), columnMap);
   };
 
   const runPreview = useCallback(
@@ -85,7 +99,7 @@ export default function SendPanel({
         const res = await fetch('/api/preview', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campaignId, rowId }),
+          body: JSON.stringify({ campaignId, rowId, columnMap }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -101,7 +115,7 @@ export default function SendPanel({
         setPreviewing(false);
       }
     },
-    [campaignId]
+    [campaignId, columnMap]
   );
 
   return (
@@ -136,12 +150,12 @@ export default function SendPanel({
             </div>
             <div>
               <span className="font-semibold uppercase tracking-wide text-primary-400">
-                Mapped <span className="text-primary-800">{mapping?.mappedCount}/{mapping?.totalCount}</span>
+                Mapped <span className="text-primary-800">{mappedCount}/{totalCount}</span>
               </span>
               <p className="mt-0.5 text-primary-800">
-                {missing.length === 0
+                {unresolved.length === 0
                   ? 'All placeholders resolved.'
-                  : `${missing.length} unresolved: ${missing.join(', ')}`}
+                  : `${unresolved.length} unresolved: ${unresolved.join(', ')}`}
               </p>
             </div>
             <div>
@@ -153,13 +167,53 @@ export default function SendPanel({
           </div>
 
           {missing.length > 0 && (
-            <div className="mt-3 flex items-start gap-2 rounded-xl2 border border-accent-300 bg-accent-50 px-3 py-2.5 text-xs text-accent-700">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>
-                These placeholders have no matching spreadsheet column, so emails cannot be sent until they are
-                resolved: <span className="font-mono font-semibold">{missing.join(', ')}</span>. Add the matching
-                column to the file or fix the placeholder in template.html.
-              </span>
+            <div className="mt-3">
+              <div className="flex items-start gap-2 rounded-xl2 border border-accent-300 bg-accent-50 px-3 py-2.5 text-xs text-accent-700">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>
+                  These placeholders could not be auto-matched to a column. Assign each one to a spreadsheet column
+                  below to resolve it (or fix template.html / the file).
+                </span>
+              </div>
+              <div className="mt-2 grid gap-2">
+                {missing.map((placeholder) => (
+                  <div
+                    key={placeholder}
+                    className="flex flex-col gap-2 rounded-xl2 border border-primary-100 bg-white/70 px-3 py-2.5 sm:flex-row sm:items-center"
+                  >
+                    <span className="w-44 shrink-0 font-mono text-xs font-semibold text-primary-900">
+                      {'{{' + placeholder + '}}'}
+                    </span>
+                    <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-primary-400">
+                      <AtSign className="h-3 w-3 text-secondary-500" aria-hidden="true" />
+                      Column
+                      <select
+                        value={columnMap[normalizeField(placeholder)] ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setColumnMap((prev) => {
+                            const next = { ...prev };
+                            if (value) {
+                              next[normalizeField(placeholder)] = value;
+                            } else {
+                              delete next[normalizeField(placeholder)];
+                            }
+                            return next;
+                          });
+                        }}
+                        className="rounded-lg border border-primary-100 bg-white px-2 py-1 text-xs font-normal normal-case text-primary-800 outline-none focus:border-secondary-400"
+                      >
+                        <option value="">— select column —</option>
+                        {headers.map((h) => (
+                          <option key={h} value={h}>
+                            {h}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -257,10 +311,11 @@ export default function SendPanel({
                   Send Emails ({validCount})
                 </Button>
               </div>
-              {!canSend && validCount > 0 && missing.length > 0 && (
+              {!canSend && validCount > 0 && unresolved.length > 0 && (
                 <p className="flex items-center gap-1 text-sm text-accent-700">
                   <Mail className="h-4 w-4" aria-hidden="true" />
-                  Resolve missing placeholders to send.
+                  Resolve the {unresolved.length} unmatched placeholder{unresolved.length > 1 ? 's' : ''} above to
+                  enable sending.
                 </p>
               )}
               {validCount === 0 && (

@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/requireAuth';
 import { campaignStore } from '@/lib/campaignStore';
 import { sendMail, verifySmtpConnection } from '@/services/smtpService';
-import { renderEmailFromForm, renderTemplate, type RenderedEmail } from '@/services/templateService';
+import {
+  applyMappingOverrides,
+  buildPlaceholderMapping,
+  renderEmailFromForm,
+  renderTemplate,
+  type RenderedEmail,
+} from '@/services/templateService';
 import { waitForNextSendSlot } from '@/services/rateLimiter';
 import { sendWithRetry } from '@/services/retryHelper';
 import { generateReports } from '@/services/reportGenerator';
@@ -14,7 +20,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
-  let body: { campaignId?: string; senderName?: string; subject?: string; content?: string };
+  let body: { campaignId?: string; senderName?: string; subject?: string; content?: string; columnMap?: Record<string, string> };
   try {
     body = await req.json();
   } catch {
@@ -29,6 +35,7 @@ export async function POST(req: NextRequest) {
   const senderName = body.senderName?.trim() ?? '';
   const subject = body.subject?.trim() ?? '';
   const content = body.content?.trim() ?? '';
+  const columnMap = body.columnMap ?? {};
 
   if (!senderName) {
     return NextResponse.json({ error: 'Your name is required to send emails.' }, { status: 400 });
@@ -46,10 +53,16 @@ export async function POST(req: NextRequest) {
   }
 
   // Template mode (primary): subject/body come from template.html + the row, so
-  // no manual subject/body are needed. If the template is missing or a required
-  // placeholder is unmapped we refuse to send rather than emit {{PLACEHOLDER}}.
+  // no manual subject/body are needed. The mapping is REcomputed here from the
+  // stored headers so the latest auto-matcher is always used, then any user
+  // manual column overrides are applied on top. If a required placeholder is
+  // still unmapped we refuse to send rather than emit {{PLACEHOLDER}}.
   const template = campaign.template;
-  const mapping = campaign.templateMapping;
+  let mapping = campaign.templateMapping;
+  if (template && campaign.headers && template.placeholders.length > 0) {
+    mapping = buildPlaceholderMapping(template.placeholders, campaign.headers);
+    mapping = applyMappingOverrides(mapping, columnMap);
+  }
   const canUseTemplate = Boolean(template && mapping && mapping.missing.length === 0);
 
   if (!canUseTemplate) {

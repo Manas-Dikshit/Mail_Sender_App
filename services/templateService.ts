@@ -167,6 +167,33 @@ export function buildPlaceholderMapping(
   };
 }
 
+/**
+ * Applies user-supplied override mappings (normalized placeholder -> column
+ * header) on top of an auto-computed mapping, then recomputes missing/resolved.
+ * Lets the operator manually resolve any placeholder the auto-matcher missed.
+ */
+export function applyMappingOverrides(
+  base: PlaceholderMapping,
+  overrides: Record<string, string | null | undefined>
+): PlaceholderMapping {
+  if (!overrides || Object.keys(overrides).length === 0) return base;
+
+  const byPlaceholder = { ...base.byPlaceholder };
+  for (const [norm, header] of Object.entries(overrides)) {
+    if (header) byPlaceholder[norm] = header;
+  }
+
+  const missing = base.placeholders.filter((p) => !byPlaceholder[normalizeField(p)]);
+
+  return {
+    byPlaceholder,
+    placeholders: base.placeholders,
+    missing,
+    mappedCount: base.totalCount - missing.length,
+    totalCount: base.totalCount,
+  };
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
