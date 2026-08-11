@@ -52,7 +52,7 @@ export default function Dashboard() {
   );
 
   const handleSend = useCallback(
-    async (payload: ComposePayload) => {
+    async (senderName: string) => {
       if (!outcome) return;
 
       setSending(true);
@@ -72,9 +72,7 @@ export default function Dashboard() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             campaignId: outcome.campaignId,
-            senderName: payload.senderName,
-            subject: payload.subject,
-            content: payload.content,
+            senderName,
           }),
         });
 
