@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/requireAuth';
 import { campaignStore } from '@/lib/campaignStore';
 import { sendMail, verifySmtpConnection } from '@/services/smtpService';
-import { renderEmailFromForm, renderTemplate } from '@/services/templateService';
+import { renderEmailFromForm, renderTemplate, type RenderedEmail } from '@/services/templateService';
 import { waitForNextSendSlot } from '@/services/rateLimiter';
 import { sendWithRetry } from '@/services/retryHelper';
 import { generateReports } from '@/services/reportGenerator';
-import { SENDABLE_STATUSES, type SendProgressEvent, type SendResult, type RenderedEmail } from '@/types';
+import { SENDABLE_STATUSES, type SendProgressEvent, type SendResult } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,11 +52,7 @@ export async function POST(req: NextRequest) {
   const mapping = campaign.templateMapping;
   const canUseTemplate = Boolean(template && mapping && mapping.missing.length === 0);
 
-  if (canUseTemplate) {
-    if (!content && !subject) {
-      // fall through — nothing extra required
-    }
-  } else {
+  if (!canUseTemplate) {
     if (template && mapping && mapping.missing.length > 0) {
       return NextResponse.json(
         {
