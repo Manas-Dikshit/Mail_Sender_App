@@ -191,30 +191,74 @@ function toWorkflowLog(input: GenerateReportInput, summary: CampaignSummary): st
   return lines.join('\n') + '\n';
 }
 
-/** Writes all report artifacts to disk under reports/ and returns their filenames. */
-export function generateReports(input: GenerateReportInput): ReportPaths {
-  ensureReportsDir();
+export interface ReportOutputs {
+  excel: Buffer;
+  csv: string;
+  html: string;
+  json: string;
+  log: string;
+}
 
+/**
+ * Builds every report format IN MEMORY (no filesystem). This is the source of
+ * truth used for downloads, so downloads never depend on a writable reports/
+ * directory (which can fail on ephemeral/serverless filesystems).
+ */
+export function buildReportOutputs(input: GenerateReportInput): ReportOutputs {
   const rows = buildReportRows(input);
   const summary = computeSummary(input.sendResults);
-
-  const excelName = `${input.campaignId}.xlsx`;
-  const csvName = `${input.campaignId}.csv`;
-  const htmlName = `${input.campaignId}.html`;
-  const jsonName = `${input.campaignId}.json`;
-  const logName = `${input.campaignId}.log`;
-
   const workbook = buildExcelWorkbook(rows, summary);
-  XLSX.writeFile(workbook, resolveSafePath(REPORTS_DIR, excelName));
 
-  fs.writeFileSync(resolveSafePath(REPORTS_DIR, csvName), toCsv(rows), 'utf-8');
-  fs.writeFileSync(resolveSafePath(REPORTS_DIR, htmlName), toHtml(rows, summary, input.campaignId), 'utf-8');
-  fs.writeFileSync(
-    resolveSafePath(REPORTS_DIR, jsonName),
-    JSON.stringify({ campaignId: input.campaignId, summary, rows }, null, 2),
-    'utf-8'
-  );
-  fs.writeFileSync(resolveSafePath(REPORTS_DIR, logName), toWorkflowLog(input, summary), 'utf-8');
+  return {
+    excel: XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer,
+    csv: toCsv(rows),
+    html: toHtml(rows, summary, input.campaignId),
+    json: JSON.stringify({ campaignId: input.campaignId, summary, rows }, null, 2),
+    log: toWorkflowLog(input, summary),
+  };
+}
 
-  return { excel: excelName, csv: csvName, html: htmlName, json: jsonName, log: logName };
+/**
+ * Optionally persists the report artifacts to disk under reports/ for record
+ * keeping. Returns the filenames (empty string for any format that could not
+ * be written). Never throws — a failure to save to disk must not abort the
+ * campaign summary or hide the download buttons.
+ */
+export function generateReports(input: GenerateReportInput): ReportPaths {
+  const names: ReportPaths = {
+    excel: `${input.campaignId}.xlsx`,
+    csv: `${input.campaignId}.csv`,
+    html: `${input.campaignId}.html`,
+    json: `${input.campaignId}.json`,
+    log: `${input.campaignId}.log`,
+  };
+
+  try {
+    ensureReportsDir();
+  } catch {
+    return { excel: '', csv: '', html: '', json: '', log: '' };
+  }
+
+  let outputs: ReportOutputs;
+  try {
+    outputs = buildReportOutputs(input);
+  } catch {
+    return { excel: '', csv: '', html: '', json: '', log: '' };
+  }
+
+  const safeWrite = (key: keyof ReportPaths, data: string | Buffer) => {
+    try {
+      fs.writeFileSync(resolveSafePath(REPORTS_DIR, names[key]), data);
+    } catch {
+      names[key] = '';
+    }
+  };
+
+  safeWrite('excel', outputs.excel);
+  safeWrite('csv', outputs.csv);
+  safeWrite('html', outputs.html);
+  safeWrite('json', outputs.json);
+  safeWrite('log', outputs.log);
+
+  return names;
 }
