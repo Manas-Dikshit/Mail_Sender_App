@@ -14,7 +14,7 @@ export function ProgressBar({ percentage, className }: { percentage: number; cla
       aria-valuemax={100}
     >
       <motion.div
-        className="h-full rounded-full bg-gradient-to-r from-secondary-500 via-secondary-400 to-accent-400 shadow-glow"
+        className="h-full rounded-full bg-secondary-500"
         initial={{ width: 0 }}
         animate={{ width: `${clamped}%` }}
         transition={{ type: 'spring', stiffness: 120, damping: 20 }}

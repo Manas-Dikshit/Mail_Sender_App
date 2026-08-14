@@ -9,9 +9,6 @@ body {
 
 body {
   @apply bg-canvas text-primary-800 font-body antialiased;
-  background-image: radial-gradient(circle at 15% 0%, rgba(176, 213, 206, 0.35), transparent 45%),
-    radial-gradient(circle at 85% 0%, rgba(28, 134, 191, 0.12), transparent 40%);
-  background-attachment: fixed;
 }
 
 h1,

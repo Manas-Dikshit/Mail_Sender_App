@@ -12,9 +12,9 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          'bg-gradient-to-b from-primary-500 to-primary-600 text-canvas-soft shadow-card hover:from-primary-400 hover:to-primary-500',
+          'bg-primary-500 text-canvas-soft shadow-card hover:bg-primary-600',
         secondary:
-          'bg-gradient-to-b from-secondary-500 to-secondary-600 text-canvas-soft shadow-card hover:from-secondary-400 hover:to-secondary-500',
+          'bg-secondary-500 text-canvas-soft shadow-card hover:bg-secondary-600',
         outline:
           'border-2 border-primary-200 bg-white/70 text-primary-700 backdrop-blur hover:border-secondary-300 hover:bg-white',
         ghost: 'text-primary-700 hover:bg-primary-50',

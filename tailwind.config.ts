@@ -64,14 +64,6 @@ const config: Config = {
         lifted: '0 24px 48px -16px rgba(23, 60, 141, 0.28)',
         glow: '0 0 0 1px rgba(28, 134, 191, 0.15), 0 0 24px rgba(28, 134, 191, 0.25)',
       },
-      backgroundImage: {
-        'grid-pattern':
-          'linear-gradient(rgba(23,60,141,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(23,60,141,0.05) 1px, transparent 1px)',
-        'radial-fade': 'radial-gradient(circle at top, rgba(176,213,206,0.5), transparent 60%)',
-      },
-      backgroundSize: {
-        grid: '28px 28px',
-      },
       keyframes: {
         'fade-up': {
           '0%': { opacity: '0', transform: 'translateY(8px)' },
