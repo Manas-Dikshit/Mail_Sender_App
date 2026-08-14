@@ -328,19 +328,19 @@ export default function SendPanel({
             <ProgressBar percentage={progress?.percentage ?? 0} />
 
             <div className="grid grid-cols-3 gap-3 text-center sm:gap-4">
-              <div className="rounded-xl2 bg-primary-50 py-3">
+              <div className="rounded-xl2 border border-primary-100 bg-primary-50 py-3">
                 <div className="font-heading text-2xl text-primary-700">
                   <StatCounter value={progress?.processed ?? 0} duration={0.3} />
                 </div>
                 <div className="text-[11px] uppercase tracking-wide text-primary-400">Processed</div>
               </div>
-              <div className="rounded-xl2 bg-secondary-50 py-3">
+              <div className="rounded-xl2 border border-secondary-100 bg-secondary-50 py-3">
                 <div className="font-heading text-2xl text-secondary-700">
                   <StatCounter value={progress?.remaining ?? 0} duration={0.3} />
                 </div>
                 <div className="text-[11px] uppercase tracking-wide text-secondary-500">Remaining</div>
               </div>
-              <div className="rounded-xl2 bg-accent-100 py-3">
+              <div className="rounded-xl2 border border-accent-200 bg-accent-50 py-3">
                 <div className="font-heading text-2xl text-accent-700">{progress?.percentage ?? 0}%</div>
                 <div className="text-[11px] uppercase tracking-wide text-accent-600">Complete</div>
               </div>
