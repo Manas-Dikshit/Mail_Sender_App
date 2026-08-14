@@ -1,6 +1,23 @@
 import nodemailer, { Transporter } from 'nodemailer';
+import { isSyntacticallyValidEmail } from '@/utils/emailUtils';
 
 let transporter: Transporter | null = null;
+
+/**
+ * Returns the configured fixed CC recipient read only from process.env.EMAIL_CC.
+ * Throws if EMAIL_CC is missing or not a syntactically valid email address so a
+ * misconfigured value prevents sending with a clear, server-side error.
+ */
+export function getCcRecipient(): string {
+  const cc = process.env.EMAIL_CC?.trim() ?? '';
+  if (!cc) {
+    throw new Error('EMAIL_CC is not configured. Set EMAIL_CC in the environment to enable sending.');
+  }
+  if (!isSyntacticallyValidEmail(cc)) {
+    throw new Error(`EMAIL_CC is configured but not a valid email address: "${cc}".`);
+  }
+  return cc;
+}
 
 /** Lazily builds and caches a single Nodemailer transporter for Zoho SMTP. */
 function getTransporter(): Transporter {
@@ -51,6 +68,7 @@ export interface SendMailInput {
  * This fails fast for wrong credentials and avoids per-recipient retry churn.
  */
 export async function verifySmtpConnection(timeoutMs = 2000): Promise<void> {
+  getCcRecipient(); // Fail fast if EMAIL_CC is missing or invalid.
   const client = getTransporter();
 
   const verifyPromise = client.verify();
@@ -108,6 +126,7 @@ export async function sendMail(input: SendMailInput): Promise<void> {
   await client.sendMail({
     from,
     to: input.to,
+    cc: getCcRecipient(),
     subject: input.subject,
     // Include the text part only when present; with both set Nodemailer emits
     // multipart/alternative (text/plain + text/html) with correct Content-Types.
