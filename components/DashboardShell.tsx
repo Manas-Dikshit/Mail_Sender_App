@@ -88,7 +88,7 @@ function SidebarContent() {
   return (
     <>
       <div className="flex items-center gap-2.5 border-b border-primary-100/70 px-6 py-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl2 bg-gradient-to-br from-primary-500 to-secondary-500 text-canvas-soft shadow-soft">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl2 bg-secondary-500 text-white shadow-soft">
           <Mail className="h-[18px] w-[18px]" aria-hidden="true" />
         </div>
         <div>
@@ -102,9 +102,9 @@ function SidebarContent() {
           <div
             key={label}
             aria-current={active ? 'page' : undefined}
-            className={`flex items-center gap-3 rounded-xl2 px-3.5 py-2.5 text-sm font-semibold ${
+            className={`flex items-center gap-3 rounded-xl2 px-3.5 py-2.5 text-sm font-semibold transition-colors ${
               active
-                ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-canvas-soft shadow-soft'
+                ? 'bg-primary-500 text-white shadow-soft'
                 : 'text-primary-500 hover:bg-primary-50'
             }`}
           >

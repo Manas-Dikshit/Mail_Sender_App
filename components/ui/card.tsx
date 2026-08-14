@@ -24,7 +24,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
         )}
         {...(props as any)}
       >
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-accent-100/60 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-secondary-400" />
         <div className="relative">{children}</div>
       </motion.div>
     );
@@ -46,7 +46,7 @@ export function CardHeader({
   return (
     <div className="mb-5 flex items-start gap-3">
       {icon && (
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl2 bg-gradient-to-br from-secondary-100 to-accent-100 text-primary-600 shadow-soft">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl2 bg-secondary-100 text-secondary-700 shadow-soft">
           {icon}
         </div>
       )}
