@@ -40,7 +40,7 @@ export default function CampaignSummaryPanel({ summary, campaignId }: CampaignSu
         <motion.a
           href={`/api/report?campaignId=${encodeURIComponent(campaignId)}&type=excel`}
           whileHover={{ y: -2 }}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl2 bg-gradient-to-b from-primary-500 to-primary-600 px-6 py-3 text-base font-semibold tracking-wide text-canvas-soft shadow-card transition-colors hover:from-primary-400 hover:to-primary-500 sm:w-auto"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl2 bg-primary-500 px-6 py-3 text-base font-semibold tracking-wide text-canvas-soft shadow-card transition-colors hover:bg-primary-600 sm:w-auto"
         >
           <Download className="h-5 w-5" aria-hidden="true" />
           Download Excel Report

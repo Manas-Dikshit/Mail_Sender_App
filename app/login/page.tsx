@@ -23,7 +23,7 @@ export default async function LoginPage() {
 
       <div className="relative grid w-full max-w-4xl overflow-hidden rounded-xl3 shadow-lifted md:grid-cols-2">
         {/* Brand / highlights panel */}
-        <div className="hidden flex-col justify-between bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 p-10 text-canvas-soft md:flex">
+        <div className="hidden flex-col justify-between bg-primary-800 p-10 text-canvas-soft md:flex">
           <div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl2 bg-white/10 backdrop-blur">
               <Mail className="h-5 w-5" aria-hidden="true" />

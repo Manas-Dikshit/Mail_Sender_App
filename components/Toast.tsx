@@ -26,9 +26,9 @@ export function useToast(): ToastContextValue {
 }
 
 const KIND_STYLES: Record<ToastKind, { bar: string; icon: ReactNode }> = {
-  success: { bar: 'from-accent-400 to-accent-600', icon: <CheckCircle2 className="h-5 w-5 text-accent-600" aria-hidden="true" /> },
-  error: { bar: 'from-primary-500 to-primary-800', icon: <XCircle className="h-5 w-5 text-primary-700" aria-hidden="true" /> },
-  info: { bar: 'from-secondary-400 to-secondary-600', icon: <Info className="h-5 w-5 text-secondary-600" aria-hidden="true" /> },
+  success: { bar: 'bg-accent-500', icon: <CheckCircle2 className="h-5 w-5 text-accent-600" aria-hidden="true" /> },
+  error: { bar: 'bg-primary-700', icon: <XCircle className="h-5 w-5 text-primary-700" aria-hidden="true" /> },
+  info: { bar: 'bg-secondary-500', icon: <Info className="h-5 w-5 text-secondary-600" aria-hidden="true" /> },
 };
 
 export default function ToastProvider({ children }: { children: ReactNode }) {
@@ -63,7 +63,7 @@ export default function ToastProvider({ children }: { children: ReactNode }) {
               transition={{ type: 'spring', stiffness: 400, damping: 32 }}
               className="glass-panel pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-xl2 p-3.5 pr-8 shadow-lifted"
             >
-              <span className={cn('absolute inset-y-0 left-0 w-1 bg-gradient-to-b', KIND_STYLES[t.kind].bar)} />
+              <span className={cn('absolute inset-y-0 left-0 w-1', KIND_STYLES[t.kind].bar)} />
               {KIND_STYLES[t.kind].icon}
               <p className="text-sm font-medium text-primary-800">{t.message}</p>
               <button
