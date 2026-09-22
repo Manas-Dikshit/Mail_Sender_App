@@ -7,12 +7,12 @@ import {
   Loader2,
   User,
   Eye,
-  FileText,
   AlertTriangle,
   AtSign,
   Mail,
+  FileCode2,
 } from 'lucide-react';
-import type { PlaceholderMapping, SendProgressEvent, TemplateInfo } from '@/types';
+import type { SendProgressEvent } from '@/types';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -33,8 +33,6 @@ interface PreviewResult {
 }
 
 interface PreviewResponse {
-  template: Pick<TemplateInfo, 'filename' | 'title' | 'placeholders'>;
-  mapping: PlaceholderMapping;
   recipients: RecipientOption[];
   preview: PreviewResult;
 }
@@ -45,15 +43,7 @@ interface SendPanelProps {
   invalidCount: number;
   sending: boolean;
   progress: SendProgressEvent | null;
-  template: TemplateInfo | null;
-  mapping: PlaceholderMapping | null;
-  headers: string[];
-  onSend: (senderName: string, columnMap: Record<string, string>) => void;
-}
-
-/** Client-safe equivalent of the server's normalizeField. */
-function normalizeField(value: string): string {
-  return value.trim().toLowerCase().replace(/[\s\-_]+/g, '');
+  onSend: (senderName: string, htmlContent: string) => void;
 }
 
 const FIELD_CLASS =
@@ -65,159 +55,75 @@ export default function SendPanel({
   invalidCount,
   sending,
   progress,
-  template,
-  mapping,
-  headers,
   onSend,
 }: SendPanelProps) {
   const [senderName, setSenderName] = useState('');
+  const [htmlContent, setHtmlContent] = useState('');
   const [previewing, setPreviewing] = useState(false);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<number | undefined>(undefined);
-  const [columnMap, setColumnMap] = useState<Record<string, string>>({});
 
-  const missing = mapping?.missing ?? [];
-  const hasTemplate = Boolean(template && mapping);
-
-  // A placeholder is unresolved when it was auto-missing and the user has not
-  // manually assigned a column to it.
-  const unresolved = missing.filter((p) => !columnMap[normalizeField(p)]);
-  const totalCount = mapping?.totalCount ?? 0;
-  const mappedCount = totalCount - unresolved.length;
-  const canSend = validCount > 0 && hasTemplate && unresolved.length === 0 && !sending;
+  const canSend = validCount > 0 && htmlContent.trim().length > 0 && !sending;
 
   const handleSend = (e: FormEvent) => {
     e.preventDefault();
-    if (!senderName.trim()) return;
-    onSend(senderName.trim(), columnMap);
+    if (!senderName.trim() || !htmlContent.trim()) return;
+    onSend(senderName.trim(), htmlContent.trim());
   };
 
   const runPreview = useCallback(
     async (rowId?: number) => {
       setPreviewing(true);
+      setPreviewError(null);
       try {
         const res = await fetch('/api/preview', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campaignId, rowId, columnMap }),
+          body: JSON.stringify({ campaignId, rowId, htmlContent }),
         });
         const data = await res.json();
         if (!res.ok) {
           setPreview(null);
-          setPreviewing(false);
+          setPreviewError(data.error ?? 'Preview failed.');
           return;
         }
         setSelectedRowId(data.preview.rowId);
         setPreview(data as PreviewResponse);
       } catch {
         setPreview(null);
+        setPreviewError('Could not reach the server. Please try again.');
       } finally {
         setPreviewing(false);
       }
     },
-    [campaignId, columnMap]
+    [campaignId, htmlContent]
   );
 
   return (
     <Card delay={0.15}>
       <CardHeader
         eyebrow="Step 4"
-        title={hasTemplate ? 'Send Email Campaign' : 'Send Emails'}
-        description={
-          hasTemplate
-            ? 'Personalized template from template.html, delivered to every sendable recipient'
-            : 'Compose your message below, then deliver it to every sendable recipient'
-        }
+        title="Send Emails"
+        description="Paste your HTML email message below, then deliver it to every sendable recipient"
         icon={<Send className="h-5 w-5" aria-hidden="true" />}
       />
 
-      {hasTemplate && (
-        <div className="mb-5 rounded-xl2 border border-primary-100 bg-white/70 p-4 shadow-soft">
-          <div className="flex items-center gap-2 text-sm font-semibold text-primary-900">
-            <FileText className="h-4 w-4 text-secondary-500" aria-hidden="true" />
-            Template: {template?.filename}
-          </div>
-          <div className="mt-2 grid gap-2 text-xs text-primary-600 sm:grid-cols-2">
-            <div>
-              <span className="font-semibold uppercase tracking-wide text-primary-400">Subject</span>
-              <p className="mt-0.5 text-primary-800">{template?.title || '—'}</p>
-            </div>
-            <div>
-              <span className="font-semibold uppercase tracking-wide text-primary-400">Placeholders</span>
-              <p className="mt-0.5 font-mono text-[11px] text-primary-800">
-                {mapping?.placeholders.length ? mapping.placeholders.join(', ') : '—'}
-              </p>
-            </div>
-            <div>
-              <span className="font-semibold uppercase tracking-wide text-primary-400">
-                Mapped <span className="text-primary-800">{mappedCount}/{totalCount}</span>
-              </span>
-              <p className="mt-0.5 text-primary-800">
-                {unresolved.length === 0
-                  ? 'All placeholders resolved.'
-                  : `${unresolved.length} unresolved: ${unresolved.join(', ')}`}
-              </p>
-            </div>
-            <div>
-              <span className="font-semibold uppercase tracking-wide text-primary-400">Recipients</span>
-              <p className="mt-0.5 text-primary-800">
-                {validCount} valid / {invalidCount} invalid
-              </p>
-            </div>
-          </div>
-
-          {missing.length > 0 && (
-            <div className="mt-3">
-              <div className="flex items-start gap-2 rounded-xl2 border border-accent-300 bg-accent-50 px-3 py-2.5 text-xs text-accent-700">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>
-                  These placeholders could not be auto-matched to a column. Assign each one to a spreadsheet column
-                  below to resolve it (or fix template.html / the file).
-                </span>
-              </div>
-              <div className="mt-2 grid gap-2">
-                {missing.map((placeholder) => (
-                  <div
-                    key={placeholder}
-                    className="flex flex-col gap-2 rounded-xl2 border border-primary-100 bg-white/70 px-3 py-2.5 sm:flex-row sm:items-center"
-                  >
-                    <span className="w-44 shrink-0 font-mono text-xs font-semibold text-primary-900">
-                      {'{{' + placeholder + '}}'}
-                    </span>
-                    <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-primary-400">
-                      <AtSign className="h-3 w-3 text-secondary-500" aria-hidden="true" />
-                      Column
-                      <select
-                        value={columnMap[normalizeField(placeholder)] ?? ''}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setColumnMap((prev) => {
-                            const next = { ...prev };
-                            if (value) {
-                              next[normalizeField(placeholder)] = value;
-                            } else {
-                              delete next[normalizeField(placeholder)];
-                            }
-                            return next;
-                          });
-                        }}
-                        className="rounded-lg border border-primary-100 bg-white px-2 py-1 text-xs font-normal normal-case text-primary-800 outline-none focus:border-secondary-400"
-                      >
-                        <option value="">— select column —</option>
-                        {headers.map((h) => (
-                          <option key={h} value={h}>
-                            {h}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      <div className="mb-5 flex items-start gap-2 rounded-xl2 border border-primary-100 bg-white/70 p-4 shadow-soft">
+        <FileCode2 className="mt-0.5 h-4 w-4 shrink-0 text-secondary-500" aria-hidden="true" />
+        <div className="text-xs text-primary-600">
+          <p className="font-semibold text-primary-900">How the message is used</p>
+          <p className="mt-1">
+            The email subject is taken from your HTML&apos;s <code className="font-mono">&lt;title&gt;</code> tag. The
+            styled HTML (including CSS) is sent as the email body, with a plain-text fallback. No templates, no
+            placeholders.
+          </p>
+          <p className="mt-1">
+            Recipients: <span className="font-semibold text-primary-800">{validCount} valid</span> /{' '}
+            {invalidCount} invalid.
+          </p>
         </div>
-      )}
+      </div>
 
       <AnimatePresence mode="wait">
         {!sending ? (
@@ -244,6 +150,31 @@ export default function SendPanel({
               onChange={(e) => setSenderName(e.target.value)}
               className={FIELD_CLASS}
             />
+
+            <label htmlFor="html-content" className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary-500">
+              <Mail className="h-3.5 w-3.5 text-secondary-500" aria-hidden="true" />
+              HTML email message
+            </label>
+            <textarea
+              id="html-content"
+              required
+              rows={14}
+              placeholder={'<!DOCTYPE html>\n<html>\n  <head>\n    <title>Your subject here</title>\n  </head>\n  <body>\n    <p>Hello,</p>\n  </body>\n</html>'}
+              value={htmlContent}
+              onChange={(e) => setHtmlContent(e.target.value)}
+              className={`${FIELD_CLASS} min-h-64 resize-y font-mono text-xs leading-5`}
+            />
+            <p className="-mt-1 text-xs text-primary-400">
+              The <code className="font-mono">&lt;title&gt;</code> becomes the subject; the styled HTML is delivered as
+              the email body.
+            </p>
+
+            {previewError && (
+              <div className="flex items-start gap-2 rounded-xl2 border border-accent-300 bg-accent-50 px-3 py-2.5 text-xs text-accent-700">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{previewError}</span>
+              </div>
+            )}
 
             {preview && (
               <div className="rounded-xl2 border border-secondary-100 bg-white/80 p-4 shadow-soft">
@@ -278,12 +209,14 @@ export default function SendPanel({
                   <span className="font-semibold uppercase tracking-wide text-primary-400">Subject</span>{' '}
                   <span className="font-medium text-primary-900">{preview.preview.subject}</span>
                 </div>
-
+                <pre className="max-h-80 w-full overflow-auto whitespace-pre-wrap rounded-xl2 border border-primary-100 bg-white p-3 text-xs leading-5 text-primary-800">
+                  {preview.preview.text}
+                </pre>
                 <iframe
                   title={`Email preview for ${preview.preview.email}`}
                   srcDoc={preview.preview.html}
                   sandbox=""
-                  className="h-80 w-full rounded-xl2 border border-primary-100 bg-white"
+                  className="mt-3 h-80 w-full rounded-xl2 border border-primary-100 bg-white"
                 />
               </div>
             )}
@@ -295,7 +228,7 @@ export default function SendPanel({
                   variant="outline"
                   size="lg"
                   onClick={() => runPreview(selectedRowId)}
-                  disabled={validCount === 0 || !hasTemplate}
+                  disabled={validCount === 0 || !htmlContent.trim()}
                   loading={previewing}
                 >
                   <Eye className="h-4 w-4" aria-hidden="true" />
@@ -311,11 +244,10 @@ export default function SendPanel({
                   Send Emails ({validCount})
                 </Button>
               </div>
-              {!canSend && validCount > 0 && unresolved.length > 0 && (
+              {!canSend && validCount > 0 && !htmlContent.trim() && (
                 <p className="flex items-center gap-1 text-sm text-accent-700">
-                  <Mail className="h-4 w-4" aria-hidden="true" />
-                  Resolve the {unresolved.length} unmatched placeholder{unresolved.length > 1 ? 's' : ''} above to
-                  enable sending.
+                  <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                  Paste your HTML message to enable sending.
                 </p>
               )}
               {validCount === 0 && (

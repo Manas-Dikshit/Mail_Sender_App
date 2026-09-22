@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/requireAuth';
 import { campaignStore } from '@/lib/campaignStore';
 import { sendMail, verifySmtpConnection } from '@/services/smtpService';
-import {
-  applyMappingOverrides,
-  buildPlaceholderMapping,
-  renderEmailFromForm,
-  renderTemplate,
-  type RenderedEmail,
-} from '@/services/templateService';
+import { renderHtmlEmail } from '@/services/templateService';
 import { waitForNextSendSlot } from '@/services/rateLimiter';
 import { sendWithRetry } from '@/services/retryHelper';
 import { generateReports } from '@/services/reportGenerator';
@@ -20,7 +14,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
-  let body: { campaignId?: string; senderName?: string; subject?: string; content?: string; columnMap?: Record<string, string> };
+  let body: { campaignId?: string; senderName?: string; htmlContent?: string };
   try {
     body = await req.json();
   } catch {
@@ -33,12 +27,23 @@ export async function POST(req: NextRequest) {
   }
 
   const senderName = body.senderName?.trim() ?? '';
-  const subject = body.subject?.trim() ?? '';
-  const content = body.content?.trim() ?? '';
-  const columnMap = body.columnMap ?? {};
+  const htmlContent = body.htmlContent?.trim() ?? '';
 
   if (!senderName) {
     return NextResponse.json({ error: 'Your name is required to send emails.' }, { status: 400 });
+  }
+  if (!htmlContent) {
+    return NextResponse.json({ error: 'Paste your HTML email message first.' }, { status: 400 });
+  }
+
+  // The subject comes from the HTML <title>; the styled HTML is sent verbatim
+  // with a plain-text alternative, so every recipient gets the designed layout.
+  const rendered = renderHtmlEmail(htmlContent);
+  if (!rendered.subject) {
+    return NextResponse.json(
+      { error: 'No <title> found in the HTML. The <title> tag is used as the email subject.' },
+      { status: 400 }
+    );
   }
 
   const campaign = campaignStore.get(campaignId);
@@ -50,39 +55,6 @@ export async function POST(req: NextRequest) {
   }
   if (campaign.sending) {
     return NextResponse.json({ error: 'Sending is already in progress for this campaign.' }, { status: 409 });
-  }
-
-  // Template mode (primary): subject/body come from template.html + the row, so
-  // no manual subject/body are needed. The mapping is REcomputed here from the
-  // stored headers so the latest auto-matcher is always used, then any user
-  // manual column overrides are applied on top. If a required placeholder is
-  // still unmapped we refuse to send rather than emit {{PLACEHOLDER}}.
-  const template = campaign.template;
-  let mapping = campaign.templateMapping;
-  if (template && campaign.headers && template.placeholders.length > 0) {
-    mapping = buildPlaceholderMapping(template.placeholders, campaign.headers);
-    mapping = applyMappingOverrides(mapping, columnMap);
-  }
-  const canUseTemplate = Boolean(template && mapping && mapping.missing.length === 0);
-
-  if (!canUseTemplate) {
-    if (template && mapping && mapping.missing.length > 0) {
-      return NextResponse.json(
-        {
-          error:
-            'Cannot send: these template placeholders have no matching spreadsheet column: ' +
-            mapping.missing.join(', '),
-        },
-        { status: 400 }
-      );
-    }
-    // Fallback to the manual compose path when no template is available.
-    if (!subject) {
-      return NextResponse.json({ error: 'An email subject is required.' }, { status: 400 });
-    }
-    if (!content) {
-      return NextResponse.json({ error: 'Email content is required.' }, { status: 400 });
-    }
   }
 
   const sendableResults = campaign.validationResults.filter((r) => SENDABLE_STATUSES.includes(r.status));
@@ -131,10 +103,6 @@ export async function POST(req: NextRequest) {
         });
         await verifySmtpConnection();
 
-        const rowByRowId = new Map<number, Record<string, unknown>>(
-          campaign.rows.map((r) => [r.rowId, r.raw])
-        );
-
         let processed = 0;
         for (const result of sendableResults) {
           send({
@@ -146,12 +114,6 @@ export async function POST(req: NextRequest) {
             percentage: Math.round((processed / total) * 100),
             status: `Sending to ${result.email}...`,
           });
-
-          // Render this recipient's personalization from the template + this row.
-          // Never pass the unrendered template or a shared subject to sendMail.
-          const rendered: RenderedEmail = canUseTemplate && template && mapping
-            ? renderTemplate(template, mapping, rowByRowId.get(result.rowId) ?? {})
-            : renderEmailFromForm({ subject, content, recipientName: result.name });
 
           const outcome = await sendWithRetry(() =>
             sendMail({

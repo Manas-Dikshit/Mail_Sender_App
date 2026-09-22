@@ -46,9 +46,6 @@ services/                   → excel parser, validator orchestrator, SMTP
 validators/                 → the 2 validation stages (syntax, DNS MX)
 utils/                      → file safety (path traversal, sanitization),
                                email/column detection, sleep/id helpers
-templates/                  → legacy template files (no longer read at
-                               send time; the subject and body are now
-                               entered in the dashboard before sending)
 types/                      → shared TypeScript interfaces
 middleware.ts               → protects /admin/* routes
 uploads/                    → temporary storage for uploaded files (local)
@@ -85,12 +82,13 @@ for compatibility, but the SMTP-derived statuses are no longer produced.
   SMTP failure) up to **2 times** (3 attempts total) with **exponential
   backoff**. Permanent failures (auth failure, invalid mailbox) fail
   immediately without retry.
-- Subject and HTML body are **composed in the dashboard** right before
-  sending: the user enters their name, the subject line, and the message
-  content in the send form. Both subject and body support a `{{name}}`
-  placeholder, filled from the file's Name column when present, or a generic
-  greeting otherwise. The sender's name is shown in the From header of every
-  email (e.g. `"Jane Doe" <you@yourdomain.com>`).
+- The email message is **composed in the dashboard** right before sending: the
+  user pastes a full HTML message (e.g. a designed email exported from a tool)
+  and enters their name. The subject is taken from the HTML `<title>` tag and
+  the styled HTML is sent as the email body (with a plain-text fallback for
+  text-only clients). The sender's name is shown in the From header of every
+  email (e.g. `"Jane Doe" <you@yourdomain.com>`). No templates, no
+  placeholders.
 - Progress (current email, processed/remaining/percentage/status) streams to
   the dashboard live as the campaign runs.
 
@@ -140,9 +138,10 @@ password) as `ZOHO_APP_PASSWORD`.
 
 ### 3. Compose the email (in the dashboard)
 
-After validation, enter your name, subject line, and message content in the
-send form before clicking **Send Emails**. You can use `{{name}}` as a
-placeholder for each recipient's name.
+After validation, paste your HTML email message into the send form and enter
+your name before clicking **Send Emails**. The subject must be inside the
+HTML's `<title>` tag (e.g. `<title>Helping {{BRAND_NAME}} scale offline retail</title>`);
+the styled HTML (CSS included) is delivered as the email body.
 
 ## Run
 

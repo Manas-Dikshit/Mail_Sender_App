@@ -52,11 +52,12 @@ function getTransporter(): Transporter {
 export interface SendMailInput {
   to: string;
   subject: string;
+  /** Fully styled HTML body (inline <style> preserved as the operator pasted it). */
   html: string;
   /**
    * Plain-text alternative body. When provided alongside `html`, Nodemailer
    * builds a multipart/alternative message so text-only clients get real
-   * newlines (never "<br />") and HTML clients get the text/html part.
+   * newlines (never "<br />") and HTML clients get the styled HTML part.
    */
   text?: string;
   /** Display name shown in the From header, e.g. "Jane Doe" <sender@zoho.com>. */

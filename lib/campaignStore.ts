@@ -15,11 +15,7 @@ const MAX_CAMPAIGN_AGE_MS = 1000 * 60 * 60 * 6; // 6 hours
 class CampaignStore {
   private campaigns = new Map<string, CampaignState>();
 
-  create(
-    id: string,
-    rows: CampaignState['rows'],
-    init?: Pick<CampaignState, 'headers' | 'template' | 'templateMapping'>
-  ): CampaignState {
+  create(id: string, rows: CampaignState['rows']): CampaignState {
     this.evictStale();
     const state: CampaignState = {
       id,
@@ -29,9 +25,6 @@ class CampaignStore {
       sendResults: null,
       sending: false,
       reportPaths: null,
-      headers: init?.headers ?? null,
-      template: init?.template ?? null,
-      templateMapping: init?.templateMapping ?? null,
     };
     this.campaigns.set(id, state);
     return state;

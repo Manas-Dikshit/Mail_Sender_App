@@ -67,42 +67,6 @@ export interface ValidationOutcome {
   summary: ValidationSummary;
   invalidRows: ValidationResult[];
   results: ValidationResult[];
-  /** Original column headers read from the uploaded file. */
-  headers: string[];
-  /** Loaded root template (null when template.html could not be read). */
-  template: TemplateInfo | null;
-  /** Auto-computed placeholder -> spreadsheet column mapping. */
-  mapping: PlaceholderMapping | null;
-}
-
-/**
- * Info extracted from the root template.html: the <title> used as the email
- * subject, every {{PLACEHOLDER}} found, and the raw HTML used as the body.
- */
-export interface TemplateInfo {
-  filename: string;
-  /** Raw <title> text, placeholders still unresolved (e.g. "Helping {{BRAND_NAME}}..."). */
-  title: string;
-  /** Unique placeholder display names in their original casing. */
-  placeholders: string[];
-  /** Full template HTML (placeholders unresolved). */
-  bodyHtml: string;
-}
-
-/**
- * Result of mapping each template placeholder to a spreadsheet column header.
- * Matching is case-insensitive and ignores spaces, hyphens and underscores
- * (e.g. {{PRODUCT_CATEGORY}} == "Product Category" == "Product_Category").
- */
-export interface PlaceholderMapping {
-  /** normalized placeholder name -> matched column header, or null if unmapped. */
-  byPlaceholder: Record<string, string | null>;
-  /** Unique placeholder display names (original casing). */
-  placeholders: string[];
-  /** Unique placeholder display names that could not be mapped to any column. */
-  missing: string[];
-  mappedCount: number;
-  totalCount: number;
 }
 
 export type SendStatus = 'SENT' | 'FAILED' | 'SKIPPED';
@@ -148,12 +112,6 @@ export interface CampaignState {
   sendResults: SendResult[] | null;
   sending: boolean;
   reportPaths: ReportPaths | null;
-  /** Original column headers read from the uploaded file. */
-  headers: string[] | null;
-  /** Loaded root template.html (null when it could not be read). */
-  template: TemplateInfo | null;
-  /** Placeholder -> column mapping, computed automatically on upload. */
-  templateMapping: PlaceholderMapping | null;
 }
 
 export interface ReportPaths {

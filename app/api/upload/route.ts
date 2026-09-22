@@ -4,7 +4,6 @@ import { requireAuth } from '@/lib/requireAuth';
 import { campaignStore } from '@/lib/campaignStore';
 import { parseUploadedFile, ExcelParseError } from '@/services/excelParser';
 import { validateRows } from '@/services/emailValidator';
-import { buildPlaceholderMapping, loadTemplateHtml } from '@/services/templateService';
 import {
   MAX_UPLOAD_BYTES,
   getExtension,
@@ -65,12 +64,7 @@ export async function POST(req: NextRequest) {
 
     const rows = parseUploadedFile(buffer, extension);
 
-    // Column headers are used to map template placeholders to spreadsheet values.
-    const headers = Object.keys(rows[0]?.raw ?? {});
-    const template = loadTemplateHtml();
-    const templateMapping = template ? buildPlaceholderMapping(template.placeholders, headers) : null;
-
-    campaignStore.create(campaignId, rows, { headers, template, templateMapping });
+    campaignStore.create(campaignId, rows);
 
     const validationResults = await validateRows(rows);
     campaignStore.update(campaignId, { validationResults });
@@ -90,9 +84,6 @@ export async function POST(req: NextRequest) {
       },
       invalidRows: reviewRows,
       results: validationResults,
-      headers,
-      template,
-      mapping: templateMapping,
     };
 
     return NextResponse.json(outcome);
